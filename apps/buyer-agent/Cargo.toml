@@ -1,0 +1,19 @@
+[package]
+name = "buyer-agent"
+default-run = "buyer-agent"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+rgb402-agent = { path = "../../crates/rgb402-agent" }
+rgb402-core = { path = "../../crates/rgb402-core" }
+rgb402-payment = { path = "../../crates/rgb402-payment" }
+tokio.workspace = true
+tracing-subscriber.workspace = true
+
+serde_json.workspace = true
+
+[dev-dependencies]
+async-trait.workspace = true

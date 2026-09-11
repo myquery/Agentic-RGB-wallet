@@ -1,0 +1,20 @@
+[package]
+name = "rgb402-payment"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+async-trait.workspace = true
+rgb402-core = { path = "../rgb402-core" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+reqwest.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+tokio.workspace = true
+axum.workspace = true

@@ -1,0 +1,29 @@
+[workspace]
+members = [
+    "crates/rgb402-agent",
+    "crates/rgb402-core",
+    "crates/rgb402-merchant",
+    "crates/rgb402-payment",
+    "apps/buyer-agent",
+    "apps/merchant-server",
+]
+resolver = "2"
+exclude = [".dev/rgb-lightning-node"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.78"
+license = "MIT OR Apache-2.0"
+
+[workspace.dependencies]
+async-trait = "0.1"
+axum = "0.7"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "1"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "signal"] }
+tower = "0.5"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }

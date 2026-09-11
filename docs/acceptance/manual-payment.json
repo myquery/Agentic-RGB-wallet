@@ -1,0 +1,55 @@
+{
+  "observed_at": "2026-09-11T04:59:44.036946+00:00",
+  "node_commit": "e4008278c80495ea8a8514580b899e771feff872",
+  "rust_lightning_commit": "e2a0b8e24dc919ccef289f103fd1f8e1974fcc1d",
+  "asset_id": "rgb:QUqszlvP-HNp9dhf-jfhWf4K-lUh73PD-aZPA6XS-MNxUfc0",
+  "ticker": "R402USD",
+  "precision": 0,
+  "issued_supply": 1000,
+  "channel_id": "2bd916babac66e5257080fd7e7a942a01d9e621080f609126e8bea32a3fa43ea",
+  "capacity_sat": 100000,
+  "channel_rgb_allocation": 600,
+  "initial_bob_rgb_push": 100,
+  "amount": 5,
+  "carrier_msat": 3000000,
+  "payment_id": "ac20fab1af86d45679915642979198d599b68b56f08d475becef35fa74622f9d",
+  "payment_hash": "ac20fab1af86d45679915642979198d599b68b56f08d475becef35fa74622f9d",
+  "status": "Settled",
+  "human_approval": "Affirmative user response relayed to wallet CLI y/N prompt",
+  "before": {
+    "alice": {
+      "settled": 400,
+      "future": 400,
+      "spendable": 400,
+      "offchain_outbound": 500,
+      "offchain_inbound": 100
+    },
+    "bob": {
+      "settled": 0,
+      "future": 0,
+      "spendable": 0,
+      "offchain_outbound": 100,
+      "offchain_inbound": 500
+    }
+  },
+  "after": {
+    "alice": {
+      "settled": 400,
+      "future": 400,
+      "spendable": 400,
+      "offchain_outbound": 495,
+      "offchain_inbound": 105
+    },
+    "bob": {
+      "settled": 0,
+      "future": 0,
+      "spendable": 0,
+      "offchain_outbound": 105,
+      "offchain_inbound": 495
+    }
+  },
+  "pubkeys": {
+    "alice": "03b4446b07b4c3d38f717ea70cdcc281ff25347107d061cf524fe791d5dcfcfad4",
+    "bob": "0214177a64872f0137fef38f268a7d61829cbd2d93b428c0f4efe3adc71000fa55"
+  }
+}

@@ -1,0 +1,13 @@
+[package]
+name = "merchant-server"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+axum.workspace = true
+rgb402-merchant = { path = "../../crates/rgb402-merchant" }
+rgb402-payment = { path = "../../crates/rgb402-payment" }
+tokio.workspace = true
+tracing-subscriber.workspace = true

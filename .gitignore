@@ -1,0 +1,14 @@
+/target/
+/.rgb402-sim-ledger.json
+/.env
+/.env.local
+/.env.*.local
+
+/.wallet-state.json
+/.wallet-state.lock
+/wallet-audit.log
+
+/.dev/
+/.var/
+
+__pycache__/

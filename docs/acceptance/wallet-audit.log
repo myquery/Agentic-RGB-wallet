@@ -1,0 +1,22 @@
+DEMO/TEST RGB ASSETS — regtest only; not official Tether USD₮
+2026-09-11T05:12:57.386567Z  INFO rgb402_payment::wallet: event="invoice_decoded" payment_hash=db8c4d0c008c513a523bc5249d1048bcb44244c6d03a90a79fed8313e61cb544 asset=rgb:a45R_GaI-6nlzwJO-b7Rg0bQ-XHDQVz0-Zh98TMR-LeuLP4M amount=5
+DEMO/TEST RGB ASSETS — regtest only; not official Tether USD₮
+2026-09-11T05:12:57.404483Z  INFO rgb402_payment::wallet: event="payment_requested"
+2026-09-11T05:12:57.410597Z  INFO rgb402_payment::wallet: event="invoice_decoded" payment_hash=db8c4d0c008c513a523bc5249d1048bcb44244c6d03a90a79fed8313e61cb544 asset=rgb:a45R_GaI-6nlzwJO-b7Rg0bQ-XHDQVz0-Zh98TMR-LeuLP4M amount=5
+2026-09-11T05:12:57.417033Z  INFO rgb402_payment::wallet: event="policy_evaluated" plan_id=db8c4d0c008c513a523bc5249d1048bcb44244c6d03a90a79fed8313e61cb544-1 decision=RequireApproval { reason: "amount meets or exceeds auto approval threshold" }
+2026-09-11T05:12:57.417078Z  INFO rgb402_payment::wallet: event="approval_requested" plan_id=db8c4d0c008c513a523bc5249d1048bcb44244c6d03a90a79fed8313e61cb544-1
+DEMO/TEST RGB ASSETS — regtest only; not official Tether USD₮
+2026-09-11T05:12:57.427873Z  INFO rgb402_payment::wallet: event="payment_requested"
+2026-09-11T05:12:57.432439Z  INFO rgb402_payment::wallet: event="invoice_decoded" payment_hash=db8c4d0c008c513a523bc5249d1048bcb44244c6d03a90a79fed8313e61cb544 asset=rgb:a45R_GaI-6nlzwJO-b7Rg0bQ-XHDQVz0-Zh98TMR-LeuLP4M amount=5
+2026-09-11T05:12:57.438452Z  INFO rgb402_payment::wallet: event="policy_evaluated" plan_id=db8c4d0c008c513a523bc5249d1048bcb44244c6d03a90a79fed8313e61cb544-1 decision=RequireApproval { reason: "amount meets or exceeds auto approval threshold" }
+2026-09-11T05:12:57.438489Z  INFO rgb402_payment::wallet: event="approval_requested" plan_id=db8c4d0c008c513a523bc5249d1048bcb44244c6d03a90a79fed8313e61cb544-1
+2026-09-11T05:14:24.491863Z  INFO rgb402_payment::wallet: event="approval_received" plan_id=db8c4d0c008c513a523bc5249d1048bcb44244c6d03a90a79fed8313e61cb544-1
+2026-09-11T05:14:24.495700Z  INFO rgb402_payment::wallet: event="invoice_decoded" payment_hash=db8c4d0c008c513a523bc5249d1048bcb44244c6d03a90a79fed8313e61cb544 asset=rgb:a45R_GaI-6nlzwJO-b7Rg0bQ-XHDQVz0-Zh98TMR-LeuLP4M amount=5
+2026-09-11T05:14:24.503306Z  INFO rgb402_payment::wallet: event="policy_evaluated" plan_id=db8c4d0c008c513a523bc5249d1048bcb44244c6d03a90a79fed8313e61cb544-1 decision=RequireApproval { reason: "amount meets or exceeds auto approval threshold" }
+2026-09-11T05:14:25.503100Z  INFO rgb402_payment::wallet: event="payment_submitted" plan_id=db8c4d0c008c513a523bc5249d1048bcb44244c6d03a90a79fed8313e61cb544-1 payment_hash=db8c4d0c008c513a523bc5249d1048bcb44244c6d03a90a79fed8313e61cb544
+DEMO/TEST RGB ASSETS — regtest only; not official Tether USD₮
+DEMO/TEST RGB ASSETS — regtest only; not official Tether USD₮
+DEMO/TEST RGB ASSETS — regtest only; not official Tether USD₮
+DEMO/TEST RGB ASSETS — regtest only; not official Tether USD₮
+DEMO/TEST RGB ASSETS — regtest only; not official Tether USD₮
+2026-09-11T05:14:31.009497Z  INFO rgb402_payment::wallet: event="payment_settled" payment_hash=db8c4d0c008c513a523bc5249d1048bcb44244c6d03a90a79fed8313e61cb544
