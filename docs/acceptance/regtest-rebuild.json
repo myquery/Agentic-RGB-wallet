@@ -1,0 +1,24 @@
+{
+  "timestamp": "2026-09-17T05:21:45.407649+00:00",
+  "archive": ".var/regtest-archive-20260917T051644Z",
+  "asset_id": "rgb:KigwNgFx-bh7pHa~-Q7gi49D-ncmlxS5-~~44UbJ-g0Ienok",
+  "channel_id": "77695594d0bcc7703f9597d531a818f0acd3549fc107e83a5adb56013060bf80",
+  "balances": {
+    "alice": {
+      "settled": 400,
+      "future": 400,
+      "spendable": 400,
+      "offchain_outbound": 500,
+      "offchain_inbound": 100
+    },
+    "bob": {
+      "settled": 0,
+      "future": 0,
+      "spendable": 0,
+      "offchain_outbound": 100,
+      "offchain_inbound": 500
+    }
+  },
+  "payment_submissions": 0,
+  "purpose": "Fresh regtest bootstrap; not live recipient payment acceptance"
+}

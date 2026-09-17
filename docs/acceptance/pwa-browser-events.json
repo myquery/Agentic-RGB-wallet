@@ -1,0 +1,105 @@
+{
+  "observed_at": "2026-09-11T17:39:57.557Z",
+  "errors": [],
+  "events": [
+    {
+      "id": 1,
+      "kind": "user",
+      "text": "Pay Bob's invoice. Decode it, identify the asset and amount, check my available balance, and prepare the payment for human approval: lnbcrt30u1p42gwsxdpa2fr5ydpsxgsy66tvv4ehgmmwv5srxgrvd9mx2gzs2aqjqctrvdjhqarpde3k2np4qtfs6qqa62m5wz2s6anmttxns807thdg8zpqx58zwd46z6eq2fcmypp5drd88t390qwzgd3d3l48676ws934gjjkjujeld3vqfdx3t9pjrnqsp5tldhtttm4n3hmhzehsnhdfnmrcyeusqe8nzcyem5m7wlsrpsheaq9qyysgqcqzp2xqrrsslp5dw89r7rx3r48ju7qjwd76xp5d5zuwrg9w0gesl03xvgjm6ut87ps7qp9rzjqf2amlrh7q6k0l962ley9x6jaxfgy2k7l9s80e8fr0tsjup8nwmp2qqqqyqqt5sqqcqqqqlgqqqqqqqqfqfkn7ch55pzp5wpl5r6ez0uds2ry4crgup3lpwjr4nxtvvcmwg0w868phyy9p2y4q3frkrapuea07dpkmx0h03qts8n8kcymg9trh4xgqp8tfpa"
+    },
+    {
+      "id": 2,
+      "kind": "progress",
+      "text": "Working with your wallet\u2026"
+    },
+    {
+      "id": 3,
+      "kind": "wallet",
+      "text": "Invoice decoded \u00b7 5 base units over RGB Lightning"
+    },
+    {
+      "id": 4,
+      "kind": "wallet",
+      "text": "RGB assets identified"
+    },
+    {
+      "id": 5,
+      "kind": "wallet",
+      "text": "Balance checked \u00b7 490 base units available"
+    },
+    {
+      "id": 6,
+      "kind": "wallet",
+      "text": "Payment prepared. Review the exact details before approving."
+    },
+    {
+      "id": 7,
+      "kind": "approval",
+      "text": "You approved this exact payment."
+    },
+    {
+      "id": 8,
+      "kind": "progress",
+      "text": "Working with your wallet\u2026"
+    },
+    {
+      "id": 9,
+      "kind": "payment",
+      "text": "Payment pending \u00b7 68da73ae25781c24362d8fea7d7b4e8163544a5697259fb62c025a68aca190e6"
+    },
+    {
+      "id": 10,
+      "kind": "payment",
+      "text": "Payment pending \u00b7 68da73ae25781c24362d8fea7d7b4e8163544a5697259fb62c025a68aca190e6"
+    },
+    {
+      "id": 11,
+      "kind": "assistant",
+      "text": "The payment with hash 68da73ae25781c24362d8fea7d7b4e8163544a5697259fb62c025a68aca190e6 has been executed and is currently pending. I will monitor for any updates or you may check back later for a final settled or failed status."
+    }
+  ],
+  "busy": false,
+  "pending": null,
+  "wallet": {
+    "holdings": [
+      {
+        "asset": {
+          "asset_id": "rgb:a45R_GaI-6nlzwJO-b7Rg0bQ-XHDQVz0-Zh98TMR-LeuLP4M",
+          "name": "RGB402 Demo Dollar",
+          "precision": 0,
+          "ticker": "R402USD"
+        },
+        "onchain": "400",
+        "outbound": "485"
+      }
+    ],
+    "network": "regtest",
+    "sats": null
+  },
+  "activity": [
+    {
+      "payment_hash": "68da73ae25781c24362d8fea7d7b4e8163544a5697259fb62c025a68aca190e6",
+      "asset_id": "rgb:a45R_GaI-6nlzwJO-b7Rg0bQ-XHDQVz0-Zh98TMR-LeuLP4M",
+      "amount": "5",
+      "timestamp": 1789147904,
+      "direction": "sent",
+      "status": "settled"
+    },
+    {
+      "payment_hash": "27133ce5f71209801d08f5d7b263f5af28832589b1f7e3f1f845f42ed96cce33",
+      "asset_id": "rgb:a45R_GaI-6nlzwJO-b7Rg0bQ-XHDQVz0-Zh98TMR-LeuLP4M",
+      "amount": "5",
+      "timestamp": 1789125568,
+      "direction": "sent",
+      "status": "settled"
+    },
+    {
+      "payment_hash": "db8c4d0c008c513a523bc5249d1048bcb44244c6d03a90a79fed8313e61cb544",
+      "asset_id": "rgb:a45R_GaI-6nlzwJO-b7Rg0bQ-XHDQVz0-Zh98TMR-LeuLP4M",
+      "amount": "5",
+      "timestamp": 1789103664,
+      "direction": "sent",
+      "status": "settled"
+    }
+  ]
+}

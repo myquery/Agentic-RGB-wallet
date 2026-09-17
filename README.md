@@ -7,6 +7,22 @@ The original simulated demo is local and deterministic: an autonomous buyer agen
 The original merchant/buyer demo below remains simulated. The new `wallet` binary calls a real RGB Lightning node; it does not use an LLM. A real regtest payment has been observed: Alice paid Bob 5 R402USD; balances changed 500 → 495 and 100 → 105.
 
 
+## Agent Harness v1
+
+The existing RGB and L402 workflows share checked economic states, contract-bound
+authorization, conservative reservation recovery, and bounded model observations.
+See [the harness architecture and invariant/test map](docs/agent-harness.md).
+
+## Milestone 4: L402 machine commerce
+
+The PWA agent can purchase the local premium report for **3 BTC Lightning sats**
+under an independent **up-to-10-sat automatic policy**. Real settlement, payment
+proof, authenticated retry and HTTP 200 were observed. The 50-sat extended report
+requires application approval. R402USD transfers retain their existing approval
+path. See [setup, policy and recovery](docs/l402.md) and
+[acceptance evidence](docs/acceptance/l402-purchase.json), including the initial
+pending-status recovery and subsequent timing fix.
+
 ## Milestone 1: real RGB Lightning payment
 
 On Linux with Docker/Compose, Rust, Git, Python 3, a C compiler and CMake:
@@ -120,14 +136,39 @@ on the same line). Review the exact plan, then answer the application's `[y/N]`
 prompt. Type `/quit` to release the wallet lock and exit.
 
 `AGENT_MODEL` optionally selects a Chat Completions model with function calling;
-the default is `gpt-4.1-mini`. The application reads environment variables only,
-does not load `.env`, and fails at startup if the key is missing or empty.
+the default is `gpt-4.1-mini`. The agent loads missing settings from `.env.example` in the current directory;
+exported environment variables take precedence, including over empty example
+values. It does not load `.env`, and fails at startup if the key is missing or empty.
 Keep the key out of files, transcripts and logs. The OpenAI entry in `.env.example`
 is empty. Node credentials are never sent in model messages.
 
-The provider and CLI pass offline tests. **Real-model settlement remains pending**
-until the user supplies the environment key and approves a fresh regtest payment.
+**Milestone 2 is complete:** a real OpenAI `gpt-4.1-mini` session prepared and
+executed one application-approved 5 R402USD payment. Independent node verification
+confirmed settlement and balances Alice 495 → 490, Bob 105 → 110.
+See [live agent evidence](docs/acceptance/agent-rgb-lightning-payment.json) and
+[the conversation](docs/acceptance/agent-conversation.txt).
 See [agent implementation and acceptance procedure](docs/agent.md).
+
+## Milestone 3: mobile wallet PWA
+
+The mobile-first React/TypeScript PWA provides Home, Agent, Activity and Settings,
+with an application-owned payment approval sheet. It uses actual backend state
+and the same agent tools, wallet policy and durable reservations as the CLI.
+
+```bash
+npm --prefix apps/wallet-ui ci
+npm --prefix apps/wallet-ui run build
+# Load the existing wallet.env and server-side OpenAI configuration as above.
+cargo run -p buyer-agent --bin api
+```
+
+Open **http://127.0.0.1:3030**. For Vite development, run
+`npm --prefix apps/wallet-ui run dev` and open http://127.0.0.1:5173.
+See [PWA setup, security and tests](docs/pwa.md). **Milestone 3 is complete:** one
+PWA-driven, application-approved 5 R402USD payment settled, independently verified
+with Alice 490 → 485 and Bob 110 → 115. The [acceptance record](docs/acceptance/pwa-rgb-lightning-payment.json)
+and [approval screenshot](docs/acceptance/pwa-approval.png) document the flow.
+Prior CLI/agent settlement evidence remains unchanged.
 
 ## Development checks
 
@@ -212,3 +253,8 @@ The integration tests cover successful purchase, too-expensive challenge, wrong 
 The original simulated merchant/buyer flow retains its placeholder `RgbLightningPaymentProvider`. The working wallet path uses `RgbLightningClient` and the upstream regtest stack; Polar is not required.
 
 See [docs/roadmap.md](docs/roadmap.md) for the integration plan.
+
+## Two-wallet demo
+
+Run Alice and Bob as isolated instances of the same PWA/API with Receive and inbound
+activity. See [launch and acceptance instructions](docs/two-wallets.md).

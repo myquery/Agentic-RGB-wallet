@@ -1,0 +1,50 @@
+{
+  "source": "Existing PWA session events; not raw provider/tool wire transcript",
+  "events": [
+    {
+      "id": 1,
+      "kind": "user",
+      "text": "Pay 5 R402USD to alice@3f0e-102-88-113-62.ngrok-free.app."
+    },
+    {
+      "id": 2,
+      "kind": "progress",
+      "text": "Working with your wallet\u2026"
+    },
+    {
+      "id": 3,
+      "kind": "wallet",
+      "text": "RGB assets identified"
+    },
+    {
+      "id": 4,
+      "kind": "wallet",
+      "text": "Payment prepared. Review the exact details before approving."
+    },
+    {
+      "id": 5,
+      "kind": "approval",
+      "text": "You approved this exact payment."
+    },
+    {
+      "id": 6,
+      "kind": "progress",
+      "text": "Working with your wallet\u2026"
+    },
+    {
+      "id": 7,
+      "kind": "payment",
+      "text": "Payment pending \u00b7 8f14fd52544defc8113a409c39f5068b2eae6a7b5846c0302637ac38275b8562"
+    },
+    {
+      "id": 8,
+      "kind": "payment",
+      "text": "Payment pending \u00b7 8f14fd52544defc8113a409c39f5068b2eae6a7b5846c0302637ac38275b8562"
+    },
+    {
+      "id": 9,
+      "kind": "assistant",
+      "text": "The payment of 5 R402USD to alice@3f0e-102-88-113-62.ngrok-free.app has been executed and is currently pending. The wallet indicates the payment is submitted but not yet settled. You can query the payment status to check for updates."
+    }
+  ]
+}

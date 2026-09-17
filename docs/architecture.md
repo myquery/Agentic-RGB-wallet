@@ -72,8 +72,67 @@ The spending policy is a hard safety boundary. It checks:
 - the amount is within the maximum single-payment limit;
 - the projected session spend is within budget.
 
-Future AI planning can propose purchases, but it must not bypass this deterministic policy layer.
+The AI agent proposes purchases through typed wallet tools and cannot bypass the
+deterministic wallet policy. The CLI and mobile PWA use the same bound-plan
+approval mechanism; the PWA's loopback Axum API owns the wallet session and
+accepts approval by plan identity only. See [the PWA architecture](pwa.md).
 
 ## Real-node Integration
 
 The wallet uses `RgbLightningClient` through the `RgbNode` trait to connect to the pinned `rgb-lightning-node` regtest environment. The original Polar integration remains a stub in the simulated purchase flow; it is not needed by the working wallet path. See [regtest setup](regtest.md) for the two-node environment and payment verification commands.
+
+## Milestone 4: separate BTC machine purchases
+
+`rgb402-core::machine` owns the deterministic satoshi policy.
+`rgb402-payment::lightning` adds BTC-only node capabilities using the existing
+client; `commerce` owns challenge parsing, origin restrictions, bound machine
+plans, a durable reservation journal, settlement proof and resource retry.
+`rgb402-merchant::l402` and the `l402-merchant` binary implement the real protected
+resource alongside the unchanged simulated RGB merchant.
+
+The agent conditionally exposes one `agent_fetch_resource` tool when commerce is
+configured. Automatic policy executes only inside the deterministic service.
+Larger plans pause the loop; the existing application-only approval boundary
+confirms their stored identity. PWA machine receipts/activity distinguish sats
+from RGB units. The six workspace members and eight-step loop remain.
+See [L402 setup and acceptance](l402.md).
+
+## Agent Harness v1
+
+Both payment services now enforce explicit contract-bound transitions through
+`rgb402-payment::harness`, retaining their existing journals and policies. See
+[the harness boundaries, state machines and invariant/test map](agent-harness.md).
+
+## Recipient identity and discovery
+
+The standalone `rgb402-agent::recipient` module resolves `name@domain` through
+HTTPS WebFinger into a validated same-origin RGB invoice-service descriptor.
+DNS locates the domain; HTTPS authenticates its transport; WebFinger advertises
+an account capability. Discovery grants no spending authorization.
+
+The layers are **identity/discovery → future invoice acquisition → economic
+Harness v1**. A future acquired invoice must match the user's requested asset
+and amount before entering the unchanged Harness. The RGB invoice remains the
+payment request; Harness policy, application approval and authoritative evidence
+remain the economic authority. Discovery itself acquires no invoice or spending authority; the standalone
+acquisition layer below supplies validated candidates. Payment through aliases
+is not implemented. See [the discovery profile, API and security policy](recipient-discovery.md).
+
+Recipient invoice acquisition now extends that preflight layer through a single
+HTTPS POST and local RGB-aware BOLT11 validation. A private immutable contract
+binds identity, service, asset, amount, network and carrier ceiling to the
+validated candidate. Domain authentication, discovery, provenance and economic
+intent validation confer no economic authorization. No interactive agent tool or
+Harness entry is added. See [Recipient Invoice Acquisition v1](recipient-invoice-acquisition.md).
+
+The [recipient-to-Harness bridge](recipient-harness-bridge.md) now adapts a validated
+candidate and the original acquisition contract into an ordinary RGB payment
+plan. It adds bounded optional provenance to existing plans/reservations while
+retaining exact decoded-request comparison, current-time execution checks,
+application approval, duplicate protection and authoritative settlement status.
+It performs no discovery/acquisition and adds no agent tools.
+
+The interactive agent now exposes one [recipient preparation capability](recipient-agent.md).
+It composes the existing preflight and bridge layers, returns a bounded ordinary
+plan observation, and reuses the existing execution/status tools and immutable
+application approval. Protocol internals remain outside model context.

@@ -411,3 +411,8 @@ fn temporary_path(path: &Path) -> PathBuf {
 pub mod config;
 pub mod rgb;
 pub mod wallet;
+
+pub mod commerce;
+pub mod lightning;
+
+pub mod harness;

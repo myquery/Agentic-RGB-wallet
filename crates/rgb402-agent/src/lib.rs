@@ -1,3 +1,4 @@
+pub mod recipient;
 pub mod wallet_agent;
 
 use async_trait::async_trait;

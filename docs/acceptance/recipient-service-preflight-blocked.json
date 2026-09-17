@@ -1,0 +1,62 @@
+{
+  "timestamp": "2026-09-17T05:35:20.838130+00:00",
+  "result": "blocked_before_deployment",
+  "recipient_identifier": null,
+  "authoritative_domain": null,
+  "deployment_method": null,
+  "webfinger_success": null,
+  "invoice_service_origin": null,
+  "requested_asset": "rgb:KigwNgFx-bh7pHa~-Q7gi49D-ncmlxS5-~~44UbJ-g0Ienok",
+  "requested_amount": 5,
+  "invoice_validation_result": "not_attempted",
+  "invoice_id": null,
+  "decoded_asset": null,
+  "decoded_amount": null,
+  "invoice_expiry_state": null,
+  "carrier_msat": null,
+  "preparation_attempted": false,
+  "payment_submissions": 0,
+  "acquisition_requests": 0,
+  "blockers": [
+    {
+      "code": "asset_rejected_by_existing_contract",
+      "unsupported_characters": [
+        "~"
+      ],
+      "source": "crates/rgb402-agent/src/recipient/acquisition.rs:41",
+      "detail": "RecipientInvoiceContract::new accepts ASCII alphanumeric and colon, hyphen, underscore only; the requested asset contains tilde. Request forbids changing validation."
+    },
+    {
+      "code": "public_hostname_unconfirmed",
+      "detail": "ngrok installed and a config file exists; no public hostname supplied. Credential validity and public reachability not tested."
+    }
+  ],
+  "inspection": {
+    "hosting_option": "Add recipient-only entrypoint in existing merchant-server package; no existing WebFinger route found",
+    "recipient_node": "Bob loopback API, POST /lninvoice",
+    "invoice_request_fields": [
+      "asset_id",
+      "asset_amount",
+      "amt_msat",
+      "expiry_sec"
+    ],
+    "proposed_carrier_msat": 3000000,
+    "proposed_expiry_sec": 3600,
+    "public_routes": [
+      "/.well-known/webfinger",
+      "/rgb/invoice/alice"
+    ],
+    "node_api_public_exposure": false
+  },
+  "working_behavior_modified": false,
+  "deployment_preference": "User authorized ngrok when localhost is inapplicable; localhost is rejected by unchanged public-network policy",
+  "regressions": {
+    "recipient_tests": {
+      "passed": 35,
+      "failed": 0
+    },
+    "cargo_fmt_check": "passed",
+    "strict_workspace_clippy": "passed",
+    "frontend_build": "not_run; no frontend changes"
+  }
+}

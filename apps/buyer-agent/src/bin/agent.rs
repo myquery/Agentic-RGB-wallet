@@ -1,3 +1,6 @@
+#[path = "../agent_config.rs"]
+mod agent_config;
+
 use rgb402_agent::wallet_agent::{openai::OpenAiModel, AgentModel, TurnOutcome, WalletAgent};
 use rgb402_payment::{config::WalletConfig, rgb::RgbLightningClient, wallet::WalletService};
 use std::{
@@ -5,16 +8,15 @@ use std::{
     sync::Arc,
 };
 
-const HELP: &str = "RGB402 Agent — demo regtest RGB wallet\nUsage: cargo run -p buyer-agent --bin agent\nRequired: OPENAI_API_KEY and existing wallet environment configuration.\nOptional: AGENT_MODEL (default gpt-4.1-mini). No .env files are loaded.\nAsk about assets, balances, an invoice, or a payment. Paste the invoice on the same line.\nEvery payment pauses at an application-owned [y/N] prompt.\nType /quit to exit. Maximum eight tool/model steps per turn.";
+const HELP: &str = "RGB402 Agent — demo regtest RGB wallet\nUsage: cargo run -p buyer-agent --bin agent\nRequired: OPENAI_API_KEY and existing wallet environment configuration.\nOptional: AGENT_MODEL (default gpt-4.1-mini). .env.example in the current directory supplies missing settings; exported variables win.\nAsk about assets, balances, an invoice, or a payment. Paste the invoice on the same line.\nEvery payment pauses at an application-owned [y/N] prompt.\nType /quit to exit. Maximum eight tool/model steps per turn.";
 
-#[tokio::main]
-async fn main() {
-    if let Err(error) = start().await {
+fn main() {
+    if let Err(error) = launch() {
         eprintln!("Agent startup failed: {error}");
         std::process::exit(1);
     }
 }
-async fn start() -> Result<(), Box<dyn std::error::Error>> {
+fn launch() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<_> = std::env::args().skip(1).collect();
     if args == ["--help"] || args == ["-h"] {
         println!("{HELP}");
@@ -23,6 +25,11 @@ async fn start() -> Result<(), Box<dyn std::error::Error>> {
     if !args.is_empty() {
         return Err("unknown argument; use --help".into());
     }
+    // Set fallback environment before any runtime worker threads exist.
+    agent_config::load_defaults(std::path::Path::new(".env.example"))?;
+    tokio::runtime::Runtime::new()?.block_on(start())
+}
+async fn start() -> Result<(), Box<dyn std::error::Error>> {
     // Validate provider configuration before opening wallet state or contacting any node.
     let model = OpenAiModel::from_env()?;
     let config = WalletConfig::from_env()?;
@@ -107,10 +114,21 @@ async fn run<M: AgentModel>(
                     writeln!(output,"Model error: {error}. Wallet results above remain authoritative; a model error does not cancel a submitted payment.")?;
                     break;
                 }
+                Ok(TurnOutcome::MachinePrepared(_)) => {
+                    eprintln!("Machine approval requires the PWA application.");
+                }
                 Ok(TurnOutcome::Prepared(plan)) => {
+                    if let Some(recipient) = &plan.recipient {
+                        writeln!(
+                            output,
+                            "Recipient: {}\nAuthoritative domain: {}",
+                            terminal_text(&recipient.identifier),
+                            terminal_text(&recipient.authoritative_domain)
+                        )?;
+                    }
                     writeln!(output,"Application payment confirmation\nAsset ID: {}\nAmount: {} base units\nAvailable outbound: {} base units\nInvoice/destination: {}\nPayment hash: {}\nCarrier: {} msat, plus node-managed routing fees\nPolicy: {}\nPlan ID: {}",
                         terminal_text(plan.request.asset_id.as_str()),plan.request.amount,plan.available_balance,
-                        terminal_text(&plan.request.invoice),terminal_text(plan.request.payment_hash.as_str()),plan.request.carrier_msat,
+                        terminal_text(plan.recipient.as_ref().map(|r|r.identifier.as_str()).unwrap_or(&plan.request.invoice)),terminal_text(plan.request.payment_hash.as_str()),plan.request.carrier_msat,
                         terminal_text(&serde_json::to_string(&plan.policy).expect("serializable policy")),terminal_text(&plan.plan_id))?;
                     write!(output, "Approve this exact demo payment? [y/N] ")?;
                     output.flush()?;

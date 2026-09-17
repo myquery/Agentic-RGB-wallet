@@ -157,9 +157,17 @@ fn request<'a>(
                     },
                 }],
             },
-            Message::Result { call_id, output } => WireMessage::Tool {
+            Message::Result {
+                call_id,
+                output,
+                task,
+            } => WireMessage::Tool {
                 tool_call_id: call_id.clone(),
-                content: serde_json::to_string(output).map_err(|_| ModelError::InvalidResponse)?,
+                content: serde_json::to_string(&super::observation::with_task(
+                    output,
+                    task.as_deref(),
+                ))
+                .map_err(|_| ModelError::InvalidResponse)?,
             },
         });
     }

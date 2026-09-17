@@ -1,0 +1,17 @@
+2026-09-11T20:41:17.842920Z  INFO rgb402_agent::wallet_agent: event="agent_tool_requested" tool=agent_fetch_resource
+2026-09-11T20:41:17.843065Z  INFO rgb402_payment::commerce: event="resource_requested"
+2026-09-11T20:41:17.887888Z  INFO rgb402_payment::commerce: event="payment_challenge_received" cost_sats=3
+2026-09-11T20:41:17.890743Z  INFO rgb402_payment::commerce: event="machine_policy_evaluated" decision=AllowAuto cost_sats=3
+2026-09-11T20:41:17.900366Z  INFO rgb402_payment::commerce: event="machine_payment_auto_approved" cost_sats=3
+2026-09-11T20:41:17.900410Z  INFO rgb402_payment::commerce: event="machine_payment_submitted" payment_hash=e2760404a50cdc11d07e73a19da3ccea67e619c7d0adc803c59cc9a0bb7189eb
+2026-09-11T20:42:42.908563Z  INFO rgb402_agent::wallet_agent: event="agent_tool_requested" tool=wallet_payment_status
+2026-09-11T20:42:44.068322Z  INFO rgb402_agent::wallet_agent: event="agent_tool_requested" tool=agent_fetch_resource
+2026-09-11T20:42:44.068444Z  INFO rgb402_payment::commerce: event="resource_requested"
+2026-09-11T20:42:44.070273Z  INFO rgb402_payment::commerce: event="machine_payment_settled" payment_hash=e2760404a50cdc11d07e73a19da3ccea67e619c7d0adc803c59cc9a0bb7189eb
+2026-09-11T20:42:44.070359Z  INFO rgb402_payment::commerce: event="resource_retry_started"
+2026-09-11T20:42:44.072174Z  INFO rgb402_payment::commerce: event="resource_unlocked" payment_hash=e2760404a50cdc11d07e73a19da3ccea67e619c7d0adc803c59cc9a0bb7189eb
+2026-09-11T20:44:26.127924Z  INFO rgb402_agent::wallet_agent: event="agent_tool_requested" tool=agent_fetch_resource
+2026-09-11T20:44:26.128068Z  INFO rgb402_payment::commerce: event="resource_requested"
+2026-09-11T20:44:26.147540Z  INFO rgb402_payment::commerce: event="payment_challenge_received" cost_sats=50
+2026-09-11T20:44:26.149470Z  INFO rgb402_payment::commerce: event="machine_policy_evaluated" decision=RequireApproval cost_sats=50
+2026-09-11T20:44:26.149541Z  INFO rgb402_payment::commerce: event="machine_approval_requested" plan_id=machine-92ae00a1b6a3a141f54c13a607400f12f358457a7a4d7b7d2b10cde48630a0c2

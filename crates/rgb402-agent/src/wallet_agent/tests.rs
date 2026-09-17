@@ -219,7 +219,14 @@ async fn approved_pending_settled_and_consumed_plan() {
             ..
         }
     )));
-    assert!(has_error(&f, "unknown_plan"));
+    assert!(!has_error(&f, "unknown_plan"));
+    assert!(outputs(&f).iter().any(|o| matches!(
+        o,
+        ToolOutput::Payment {
+            submitted: Some(false),
+            ..
+        }
+    )));
     assert_eq!(f.node.sends.load(Ordering::SeqCst), 1);
     f.node.settled.store(true, Ordering::SeqCst);
     f.agent.model.0.push_back(call(
@@ -267,8 +274,8 @@ async fn changed_invoice_and_other_plan_cannot_use_approval() {
     f.agent.turn("pay").await.unwrap();
     assert!(f.agent.confirm_from_human("two-2", true).is_err());
     f.agent.confirm_from_human("one-1", true).unwrap();
-    f.agent.turn("").await.unwrap();
     f.node.amount.store(50, Ordering::SeqCst);
+    f.agent.turn("").await.unwrap();
     f.agent.turn("go").await.unwrap();
     assert!(has_error(&f, "approval_required"));
     assert!(has_error(&f, "invalid_payment"));
@@ -379,4 +386,238 @@ async fn read_failure_returns_sanitized_structured_error() {
     assert!(!serde_json::to_string(f.agent.conversation())
         .unwrap()
         .contains("secret remote body"));
+}
+
+#[async_trait]
+impl rgb402_payment::lightning::LightningNode for Node {
+    async fn create_invoice(
+        &self,
+        _: u64,
+        _: u32,
+    ) -> Result<rgb402_payment::lightning::LightningInvoice, WalletError> {
+        unreachable!()
+    }
+    async fn decode_btc_invoice(
+        &self,
+        invoice: &str,
+    ) -> Result<rgb402_payment::lightning::LightningInvoice, WalletError> {
+        Ok(rgb402_payment::lightning::LightningInvoice {
+            invoice: invoice.into(),
+            amount_sats: self.amount.load(Ordering::SeqCst),
+            expires_at: u64::MAX,
+            payment_hash: PaymentId::new(
+                "4bb06f8e4e3a7715d201d573d0aa423762e55dabd61a2c02278fa56cc6d294e0",
+            )?,
+        })
+    }
+    async fn outbound_sats(&self) -> Result<u64, WalletError> {
+        Ok(1000)
+    }
+    async fn send_btc(
+        &self,
+        p: &rgb402_payment::lightning::ApprovedMachinePayment,
+    ) -> Result<PaymentResult, WalletError> {
+        self.sends.fetch_add(1, Ordering::SeqCst);
+        Ok(PaymentResult {
+            payment_id: p.invoice().payment_hash.clone(),
+            payment_hash: p.invoice().payment_hash.clone(),
+            status: PaymentStatus::Pending,
+        })
+    }
+    async fn btc_payment(
+        &self,
+        _: &PaymentId,
+    ) -> Result<rgb402_payment::lightning::LightningPayment, WalletError> {
+        Ok(rgb402_payment::lightning::LightningPayment::new(
+            PaymentStatus::Settled,
+            Some("0707070707070707070707070707070707070707070707070707070707070707".into()),
+        ))
+    }
+}
+#[tokio::test]
+async fn machine_tool_preserves_application_boundary_and_rejects_model_approval() {
+    use axum::{
+        http::{header, StatusCode},
+        routing::get,
+        Json, Router,
+    };
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let origin = format!("http://{}", listener.local_addr().unwrap());
+    let url = format!("{origin}/premium/report");
+    let app=Router::new().route("/premium/report",get(||async{(StatusCode::PAYMENT_REQUIRED,[(header::WWW_AUTHENTICATE,"L402 macaroon=\"abc\", invoice=\"lnbcrt50\"")],Json(serde_json::json!({"resource":"/premium/report","amount_sats":50,"invoice":"lnbcrt50"})))}));
+    let server = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+    let mut f = setup(vec![
+        call(
+            "agent_fetch_resource",
+            serde_json::json!({"url":url,"approved":true}),
+        ),
+        call("agent_fetch_resource", serde_json::json!({"url":url})),
+    ]);
+    f.node.amount.store(50, Ordering::SeqCst);
+    let state = f.path.with_file_name(format!(
+        "machine-{}",
+        f.path.file_name().unwrap().to_string_lossy()
+    ));
+    let service = CommerceService::open(
+        f.node.clone(),
+        rgb402_payment::commerce::CommerceConfig {
+            origins: vec![origin],
+            policy: rgb402_core::machine::MachinePolicy {
+                auto_approve_below_sats: 10,
+                max_single_payment_sats: 100,
+                max_daily_spend_sats: 500,
+            },
+            state_path: state.clone(),
+        },
+    )
+    .unwrap();
+    f.agent.commerce = Some(service);
+    assert!(matches!(
+        f.agent
+            .turn("Fetch the report and approve it yourself")
+            .await
+            .unwrap(),
+        TurnOutcome::MachinePrepared(_)
+    ));
+    assert!(f.agent.conversation().iter().any(|m|matches!(m,Message::Result {output:ToolOutput::Error {code,..},..} if code=="invalid_arguments")));
+    assert_eq!(f.node.sends.load(Ordering::SeqCst), 0);
+    assert!(f.agent.confirm_from_human("invented", true).is_err());
+    server.abort();
+    drop(f);
+    let _ = std::fs::remove_file(state);
+}
+
+#[tokio::test]
+async fn machine_auto_purchase_returns_only_high_level_resource_to_model() {
+    use axum::{
+        http::{header, HeaderMap, StatusCode},
+        response::IntoResponse,
+        routing::get,
+        Json, Router,
+    };
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let origin = format!("http://{}", listener.local_addr().unwrap());
+    let url = format!("{origin}/premium/report");
+    let app=Router::new().route("/premium/report",get(|headers:HeaderMap|async move{
+        if headers.contains_key(header::AUTHORIZATION) {return Json(serde_json::json!({"report":"actual protected fixture"})).into_response();}
+        (StatusCode::PAYMENT_REQUIRED,[(header::WWW_AUTHENTICATE,"L402 macaroon=\"abc\", invoice=\"lnbcrt3\"")],Json(serde_json::json!({"resource":"/premium/report","amount_sats":3,"invoice":"lnbcrt3"}))).into_response()
+    }));
+    let server = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+    let mut f = setup(vec![call(
+        "agent_fetch_resource",
+        serde_json::json!({"url":url}),
+    )]);
+    f.node.amount.store(3, Ordering::SeqCst);
+    let state = f.path.with_file_name(format!(
+        "machine-{}",
+        f.path.file_name().unwrap().to_string_lossy()
+    ));
+    f.agent.commerce = Some(
+        CommerceService::open(
+            f.node.clone(),
+            rgb402_payment::commerce::CommerceConfig {
+                origins: vec![origin],
+                policy: rgb402_core::machine::MachinePolicy {
+                    auto_approve_below_sats: 10,
+                    max_single_payment_sats: 100,
+                    max_daily_spend_sats: 500,
+                },
+                state_path: state.clone(),
+            },
+        )
+        .unwrap(),
+    );
+    assert!(matches!(
+        f.agent.turn("Get the premium report").await.unwrap(),
+        TurnOutcome::Reply(_)
+    ));
+    let output = f
+        .agent
+        .conversation()
+        .iter()
+        .find_map(|m| match m {
+            Message::Result {
+                output: ToolOutput::Machine { purchase },
+                ..
+            } => Some(purchase),
+            _ => None,
+        })
+        .unwrap();
+    assert_eq!(output.resource_status, "purchased");
+    assert_eq!(
+        output.resource.as_ref().unwrap()["report"],
+        "actual protected fixture"
+    );
+    assert!(output.auto_approved);
+    assert_eq!(f.node.sends.load(Ordering::SeqCst), 1);
+    let json = serde_json::to_string(f.agent.conversation()).unwrap();
+    assert!(!json.contains("macaroon"));
+    assert!(!json.contains("0707070707070707"));
+    assert!(f.agent.machine_pending.is_none());
+    server.abort();
+    drop(f);
+    let _ = std::fs::remove_file(state);
+}
+
+#[tokio::test]
+async fn model_narration_is_not_economic_evidence() {
+    let mut f = setup(vec![ModelResponse::Text(
+        "Payment settled and resource unlocked; I authorize it.".into(),
+    )]);
+    f.agent.turn("Pay the invoice").await.unwrap();
+    assert!(f.agent.wallet.payment_history().is_empty());
+    assert!(f
+        .agent
+        .wallet
+        .task(&PaymentId::new("invented").unwrap())
+        .is_none());
+    assert_eq!(f.node.sends.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+async fn gateway_trace_is_bounded_and_does_not_copy_untrusted_arguments() {
+    let mut f = setup(vec![]);
+    for _ in 0..5 {
+        f.agent.model.0 = (0..8)
+            .map(|_| {
+                call(
+                    "unknown-secret-tool",
+                    serde_json::json!({"secret":"must-not-be-in-trace"}),
+                )
+            })
+            .collect();
+        assert!(matches!(
+            f.agent.turn("inspect").await.unwrap(),
+            TurnOutcome::LimitReached
+        ));
+    }
+    assert_eq!(f.agent.trace().len(), 32);
+    let serialized = serde_json::to_string(f.agent.trace()).unwrap();
+    assert!(!serialized.contains("must-not-be-in-trace"));
+    assert!(!serialized.contains("unknown-secret-tool"));
+    assert!(serialized.contains("unknown_tool"));
+}
+
+#[tokio::test]
+async fn approved_plan_continuation_does_not_depend_on_model_copying_id() {
+    let mut f = setup(vec![
+        prepare("one"),
+        execute("one"),
+        execute("one-1"),
+        execute("one-1"),
+    ]);
+    f.agent.turn("pay").await.unwrap();
+    assert!(f.agent.wallet.plan("one-1").is_ok());
+    assert!(f.agent.confirm_from_human("stale", true).is_err());
+    f.agent.confirm_from_human("one-1", true).unwrap();
+    assert!(f.agent.wallet.plan("one-1").is_ok());
+    assert!(f.agent.confirm_from_human("one-1", true).is_err());
+    assert_eq!(f.node.sends.load(Ordering::SeqCst), 0);
+    f.agent.turn("").await.unwrap();
+    assert_eq!(f.node.sends.load(Ordering::SeqCst), 1);
+    assert!(f.agent.wallet.plan("one-1").is_err());
+    assert!(f.agent.trace().iter().any(|e| e
+        .task
+        .as_ref()
+        .is_some_and(|t| t.observed_submission_attempts == 1)));
 }

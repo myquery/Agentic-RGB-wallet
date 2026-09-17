@@ -1,0 +1,81 @@
+{
+  "timestamp": "2026-09-17T11:32:38.978891+00:00",
+  "existing_payment_hash": "8f14fd52544defc8113a409c39f5068b2eae6a7b5846c0302637ac38275b8562",
+  "new_invoices": 0,
+  "new_payments": 0,
+  "wallets": {
+    "alice": {
+      "url": "http://127.0.0.1:3030",
+      "wallet": {
+        "holdings": [
+          {
+            "asset": {
+              "asset_id": "rgb:KigwNgFx-bh7pHa~-Q7gi49D-ncmlxS5-~~44UbJ-g0Ienok",
+              "name": "RGB402 Demo Dollar",
+              "ticker": "R402USD",
+              "precision": 0
+            },
+            "outbound": "495",
+            "onchain": "400"
+          }
+        ],
+        "sats": null,
+        "network": "regtest",
+        "wallet_name": "Alice Wallet"
+      },
+      "matching_activity": {
+        "payment_hash": "8f14fd52544defc8113a409c39f5068b2eae6a7b5846c0302637ac38275b8562",
+        "asset_id": "rgb:KigwNgFx-bh7pHa~-Q7gi49D-ncmlxS5-~~44UbJ-g0Ienok",
+        "amount": "5",
+        "timestamp": 1789625152,
+        "kind": "rgb_transfer",
+        "resource": null,
+        "auto_approved": null,
+        "direction": "sent",
+        "status": "settled"
+      }
+    },
+    "bob": {
+      "url": "http://127.0.0.1:3031",
+      "wallet": {
+        "holdings": [
+          {
+            "asset": {
+              "asset_id": "rgb:KigwNgFx-bh7pHa~-Q7gi49D-ncmlxS5-~~44UbJ-g0Ienok",
+              "name": "RGB402 Demo Dollar",
+              "ticker": "R402USD",
+              "precision": 0
+            },
+            "outbound": "105",
+            "onchain": "0"
+          }
+        ],
+        "sats": null,
+        "network": "regtest",
+        "wallet_name": "Bob Wallet"
+      },
+      "matching_activity": {
+        "payment_hash": "8f14fd52544defc8113a409c39f5068b2eae6a7b5846c0302637ac38275b8562",
+        "asset_id": "rgb:KigwNgFx-bh7pHa~-Q7gi49D-ncmlxS5-~~44UbJ-g0Ienok",
+        "amount": "5",
+        "timestamp": 1789625125,
+        "kind": "rgb_transfer",
+        "resource": null,
+        "auto_approved": null,
+        "direction": "received",
+        "status": "settled"
+      }
+    }
+  },
+  "independent_session_tokens": true,
+  "cross_wallet_origins_rejected": true,
+  "validation": {
+    "workspace_tests_passed": 126,
+    "additional_isolation_test": "passed in subsequent buyer-agent library run (10 tests)",
+    "frontend_tests_passed": 19,
+    "frontend_production_build": "passed",
+    "formatting": "passed",
+    "strict_clippy": "passed",
+    "browser_rendering": "automated component tests; live acceptance inspected application APIs"
+  }
+}

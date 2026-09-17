@@ -1,0 +1,95 @@
+{
+  "timestamp": "2026-09-17T05:54:59.819950+00:00",
+  "before": {
+    "alice": {
+      "settled": 400,
+      "future": 400,
+      "spendable": 400,
+      "offchain_outbound": 500,
+      "offchain_inbound": 100
+    },
+    "bob": {
+      "settled": 0,
+      "future": 0,
+      "spendable": 0,
+      "offchain_outbound": 100,
+      "offchain_inbound": 500
+    }
+  },
+  "initial_event_id": 8,
+  "policy_threshold": 1,
+  "policy_comparison": "amount >= auto_approve_below requires approval",
+  "exact_user_request": "Pay 5 R402USD to alice@3f0e-102-88-113-62.ngrok-free.app.",
+  "result": "failed_before_preparation",
+  "provider": "OpenAI",
+  "model": "gpt-4.1-mini (configured default)",
+  "recipient_identifier": "alice@3f0e-102-88-113-62.ngrok-free.app",
+  "authoritative_domain": "3f0e-102-88-113-62.ngrok-free.app",
+  "asset_id": "rgb:KigwNgFx-bh7pHa~-Q7gi49D-ncmlxS5-~~44UbJ-g0Ienok",
+  "amount": 5,
+  "policy_result": null,
+  "approval_prompt_presented": false,
+  "approval_source": null,
+  "plan_id": null,
+  "economic_action_id": null,
+  "recipient_authorization_scope": null,
+  "payment_hash": null,
+  "payment_submissions": 0,
+  "recipient_acquisition_count": 0,
+  "status_polling_count": 0,
+  "final_authoritative_payment_status": null,
+  "serialized_preparation_observation_bytes": null,
+  "protocol_internals_absent_from_model_observations": null,
+  "model_tool_sequence": [
+    "wallet_prepare_recipient_payment (inferred from recipient-specific error; raw tool trace unavailable in session API)"
+  ],
+  "failure": "RecipientInvoiceContract construction rejected arguments in existing PWA binary built before tilde correction",
+  "api_binary_build_time": "2026-09-17T05:28:48Z",
+  "corrected_preflight_binary_build_time": "2026-09-17T05:46:05Z",
+  "transcript": [
+    {
+      "id": 9,
+      "kind": "user",
+      "text": "Pay 5 R402USD to alice@3f0e-102-88-113-62.ngrok-free.app."
+    },
+    {
+      "id": 10,
+      "kind": "progress",
+      "text": "Working with your wallet\u2026"
+    },
+    {
+      "id": 11,
+      "kind": "error",
+      "text": "Provide a supported asset ID and positive integer amount"
+    },
+    {
+      "id": 12,
+      "kind": "assistant",
+      "text": "The asset ID you provided seems correct, and the amount 5 is positive. However, the payment preparation tool rejected it as invalid arguments. \n\nPlease make sure the amount is an integer base unit within your available balance and the asset ID matches exactly. You have 400 base units available on-chain and 500 off-chain outbound for R402USD. Also, confirm the recipient identifier spelling.\n\nCould you please confirm or recheck those details? If possible, provide any Lightning invoice or double-check the recipient address format."
+    }
+  ],
+  "retry_attempted": false,
+  "after": {
+    "alice": {
+      "settled": 400,
+      "future": 400,
+      "spendable": 400,
+      "offchain_outbound": 500,
+      "offchain_inbound": 100
+    },
+    "bob": {
+      "settled": 0,
+      "future": 0,
+      "spendable": 0,
+      "offchain_outbound": 100,
+      "offchain_inbound": 500
+    }
+  },
+  "validation": {
+    "recipient_tests_passed": 36,
+    "formatting": "passed after removal of temporary discovery-only runner",
+    "strict_workspace_all_targets_clippy": "passed on final run",
+    "frontend_production_build": "passed"
+  }
+}
+Alice's Wallet ──HTTP──► Alice's RGB-LN Node ◄──Lightning Channel──► Bob's RGB-LN Node ◄──HTTP── Bob's Wallet

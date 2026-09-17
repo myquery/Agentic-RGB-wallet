@@ -79,7 +79,9 @@ node failure and pending/failed/settled status.
 
 `wallet_agent/openai.rs` implements `AgentModel` using the existing `reqwest`
 dependency and `https://api.openai.com/v1/chat/completions`. No SDK is required.
-It reads `OPENAI_API_KEY` from the process environment only. Missing/blank keys
+The provider reads `OPENAI_API_KEY` from the process environment. Before runtime
+startup, the CLI loads missing settings from `.env.example` in the current
+directory, preserving every explicitly exported value. Missing/blank keys
 fail before the CLI opens the wallet or contacts a node. No credentials are
 created, provisioned or written to disk. The provider has no Debug/Serialize
 implementation; the authorization header is marked sensitive and never becomes
@@ -122,10 +124,14 @@ set +a
 cargo run -p buyer-agent --bin agent
 ```
 
-The binary reads no `.env` files. Loading `.env.example` into the same shell would
-overwrite an already exported key with its empty example value. Load wallet
-configuration before supplying the key, or use the generated `wallet.env`, which
-contains only wallet configuration. Use the same durable wallet journal as
+The binary reads `.env.example` as fallback configuration automatically; it does
+not read `.env`. Exported settings win, so an empty example key cannot overwrite
+your exported key. The example loader accepts literal `NAME=value` assignments,
+optional single/double quotes and comments; it does not execute shell expressions
+or expand variables. It loads only known wallet/model settings. With the required
+settings present in that file and your key exported, run the cargo command directly.
+For the managed regtest stack, source `wallet.env` as above to override example
+node/asset placeholders with the actual setup. Use the same durable wallet journal as
 Milestone 1. Exit with `/quit`; as with the wallet CLI, forced termination can
 leave a stale lock requiring the documented operator recovery procedure.
 
@@ -143,7 +149,16 @@ both resulting balances and verify Alice decreased by 5 and Bob increased by 5.
 The prior recorded balances were 495 and 105; do not assume they remain current.
 Do not reuse the earlier Milestone-1 approvals for this fresh invoice.
 
-Save the exact conversation, payment hash, authoritative settlement result and
-balance evidence after this live session, without credentials. **The real-model
-session has not been run yet; Milestone 2 remains incomplete until it settles.**
+The live acceptance session completed on 2026-09-11 using OpenAI `gpt-4.1-mini`.
+The model called decode, assets, balance and prepare tools, then the application
+paused for approval. After the user's explicit `yes` was relayed as `y`, the model
+executed the bound plan exactly once. It correctly reported pending first; a
+subsequent status query returned settled. Independent node checks confirmed
+Alice 495 → 490 and Bob 105 → 110 R402USD. No provider issue or application code
+change was required during acceptance.
+
+**Milestone 2 is complete.** The [acceptance record](acceptance/agent-rgb-lightning-payment.json),
+[exact conversation](acceptance/agent-conversation.txt), and
+[wallet audit events](acceptance/agent-wallet-audit.log) contain the sanitized
+evidence. Formatting, Clippy and all 48 workspace tests passed after the live run.
 The existing regtest environment and Milestone-1 acceptance evidence are preserved.

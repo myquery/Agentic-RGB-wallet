@@ -440,3 +440,5 @@ impl SpendingSession {
 }
 
 pub mod wallet;
+
+pub mod machine;

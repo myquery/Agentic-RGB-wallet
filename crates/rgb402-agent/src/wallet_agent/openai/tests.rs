@@ -44,6 +44,7 @@ fn request_preserves_roles_call_ids_results_and_strict_boundaries() {
         Message::Result {
             call_id: "call_1".into(),
             output: ToolOutput::Assets { assets: vec![] },
+            task: None,
         },
         Message::Assistant("empty".into()),
     ];
@@ -55,12 +56,12 @@ fn request_preserves_roles_call_ids_results_and_strict_boundaries() {
     assert_eq!(value["messages"][2]["tool_calls"][0]["id"], "call_1");
     assert_eq!(value["messages"][3]["tool_call_id"], "call_1");
     assert_eq!(
-        value["messages"][3]["content"],
-        "{\"type\":\"assets\",\"assets\":[]}"
+        serde_json::from_str::<Value>(value["messages"][3]["content"].as_str().unwrap()).unwrap(),
+        json!({"type":"assets","assets":[]})
     );
     assert_eq!(value["parallel_tool_calls"], false);
     assert_eq!(value["store"], false);
-    assert_eq!(value["tools"].as_array().unwrap().len(), 7);
+    assert_eq!(value["tools"].as_array().unwrap().len(), 8);
     for tool in value["tools"].as_array().unwrap() {
         assert_eq!(tool["function"]["strict"], true);
         assert_eq!(

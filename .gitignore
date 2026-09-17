@@ -12,3 +12,12 @@
 /.var/
 
 __pycache__/
+
+/apps/wallet-ui/node_modules/
+/apps/wallet-ui/dist/
+/apps/wallet-ui/test-results/
+/apps/wallet-ui/playwright-report/
+*.tsbuildinfo
+
+.machine-state*
+.merchant-key

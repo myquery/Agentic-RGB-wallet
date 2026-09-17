@@ -1,0 +1,29 @@
+2026-09-11T11:13:59.985910Z  INFO rgb402_agent::wallet_agent: event="agent_request_received"
+2026-09-11T11:14:11.290877Z  INFO rgb402_agent::wallet_agent: event="agent_tool_requested" tool=wallet_decode_invoice
+2026-09-11T11:14:11.296413Z  INFO rgb402_payment::wallet: event="invoice_decoded" payment_hash=27133ce5f71209801d08f5d7b263f5af28832589b1f7e3f1f845f42ed96cce33 asset=rgb:a45R_GaI-6nlzwJO-b7Rg0bQ-XHDQVz0-Zh98TMR-LeuLP4M amount=5
+2026-09-11T11:14:11.296458Z  INFO rgb402_agent::wallet_agent: event="agent_tool_completed" tool=wallet_decode_invoice
+2026-09-11T11:14:12.618685Z  INFO rgb402_agent::wallet_agent: event="agent_tool_requested" tool=wallet_get_assets
+2026-09-11T11:14:12.626793Z  INFO rgb402_agent::wallet_agent: event="agent_tool_completed" tool=wallet_get_assets
+2026-09-11T11:14:14.697750Z  INFO rgb402_agent::wallet_agent: event="agent_tool_requested" tool=wallet_get_balance
+2026-09-11T11:14:14.704912Z  INFO rgb402_agent::wallet_agent: event="agent_tool_completed" tool=wallet_get_balance
+2026-09-11T11:14:19.634551Z  INFO rgb402_agent::wallet_agent: event="agent_tool_requested" tool=wallet_prepare_payment
+2026-09-11T11:14:19.634652Z  INFO rgb402_payment::wallet: event="payment_requested"
+2026-09-11T11:14:19.637611Z  INFO rgb402_payment::wallet: event="invoice_decoded" payment_hash=27133ce5f71209801d08f5d7b263f5af28832589b1f7e3f1f845f42ed96cce33 asset=rgb:a45R_GaI-6nlzwJO-b7Rg0bQ-XHDQVz0-Zh98TMR-LeuLP4M amount=5
+2026-09-11T11:14:19.643216Z  INFO rgb402_payment::wallet: event="policy_evaluated" plan_id=27133ce5f71209801d08f5d7b263f5af28832589b1f7e3f1f845f42ed96cce33-1 decision=RequireApproval { reason: "amount meets or exceeds auto approval threshold" }
+2026-09-11T11:14:19.643271Z  INFO rgb402_payment::wallet: event="approval_requested" plan_id=27133ce5f71209801d08f5d7b263f5af28832589b1f7e3f1f845f42ed96cce33-1
+2026-09-11T11:14:19.643307Z  INFO rgb402_agent::wallet_agent: event="agent_tool_completed" tool=wallet_prepare_payment
+2026-09-11T11:14:19.643813Z  INFO rgb402_agent::wallet_agent: event="payment_plan_presented" plan_id=27133ce5f71209801d08f5d7b263f5af28832589b1f7e3f1f845f42ed96cce33-1
+2026-09-11T11:19:26.460522Z  INFO rgb402_payment::wallet: event="approval_received" plan_id=27133ce5f71209801d08f5d7b263f5af28832589b1f7e3f1f845f42ed96cce33-1
+2026-09-11T11:19:26.460596Z  INFO rgb402_agent::wallet_agent: event="agent_request_received"
+2026-09-11T11:19:28.836361Z  INFO rgb402_agent::wallet_agent: event="agent_tool_requested" tool=wallet_execute_payment
+2026-09-11T11:19:28.836439Z  INFO rgb402_agent::wallet_agent: event="payment_execution_requested" plan_id=27133ce5f71209801d08f5d7b263f5af28832589b1f7e3f1f845f42ed96cce33-1
+2026-09-11T11:19:28.840054Z  INFO rgb402_payment::wallet: event="invoice_decoded" payment_hash=27133ce5f71209801d08f5d7b263f5af28832589b1f7e3f1f845f42ed96cce33 asset=rgb:a45R_GaI-6nlzwJO-b7Rg0bQ-XHDQVz0-Zh98TMR-LeuLP4M amount=5
+2026-09-11T11:19:28.847387Z  INFO rgb402_payment::wallet: event="policy_evaluated" plan_id=27133ce5f71209801d08f5d7b263f5af28832589b1f7e3f1f845f42ed96cce33-1 decision=RequireApproval { reason: "amount meets or exceeds auto approval threshold" }
+2026-09-11T11:19:30.101333Z  INFO rgb402_payment::wallet: event="payment_submitted" plan_id=27133ce5f71209801d08f5d7b263f5af28832589b1f7e3f1f845f42ed96cce33-1 payment_hash=27133ce5f71209801d08f5d7b263f5af28832589b1f7e3f1f845f42ed96cce33
+2026-09-11T11:19:30.103299Z  INFO rgb402_agent::wallet_agent: event="agent_tool_completed" tool=wallet_execute_payment
+2026-09-11T11:19:32.004671Z  INFO rgb402_agent::wallet_agent: event="agent_tool_requested" tool=wallet_payment_status
+2026-09-11T11:19:32.006921Z  INFO rgb402_agent::wallet_agent: event="agent_tool_completed" tool=wallet_payment_status
+2026-09-11T11:19:52.319953Z  INFO rgb402_agent::wallet_agent: event="agent_request_received"
+2026-09-11T11:19:53.655254Z  INFO rgb402_agent::wallet_agent: event="agent_tool_requested" tool=wallet_payment_status
+2026-09-11T11:19:53.657829Z  INFO rgb402_payment::wallet: event="payment_settled" payment_hash=27133ce5f71209801d08f5d7b263f5af28832589b1f7e3f1f845f42ed96cce33
+2026-09-11T11:19:53.657888Z  INFO rgb402_agent::wallet_agent: event="agent_tool_completed" tool=wallet_payment_status

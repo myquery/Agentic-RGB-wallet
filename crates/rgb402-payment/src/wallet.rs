@@ -1,3 +1,4 @@
+use crate::harness::{Action, ReservationAuthority, TaskKind, TaskSnapshot};
 use crate::rgb::RgbNode;
 use rgb402_core::{
     wallet::{PaymentRequest, PolicyDecision, WalletBalance, WalletPolicy},
@@ -38,14 +39,80 @@ pub enum WalletError {
     #[error("invalid identifier: {0}")]
     Domain(#[from] rgb402_core::DomainError),
 }
+fn authorization_scope(
+    economic_action_id: &str,
+    provenance: Option<&RecipientProvenance>,
+) -> Result<String, WalletError> {
+    use sha2::{Digest, Sha256};
+    match provenance {
+        Some(recipient) => Ok(hex::encode(Sha256::digest(serde_json::to_vec(&(
+            "rgb402-recipient-authorization-v1",
+            economic_action_id,
+            &recipient.recipient_contract_digest,
+        ))?))),
+        None => Ok(economic_action_id.to_owned()),
+    }
+}
+/// Bounded application provenance, never an authorization capability.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RecipientProvenance {
+    pub identifier: String,
+    pub authoritative_domain: String,
+    pub recipient_contract_digest: String,
+    pub invoice_id: String,
+    pub payment_hash: PaymentId,
+}
+impl RecipientProvenance {
+    fn validate(&self, request: &PaymentRequest) -> Result<(), WalletError> {
+        use sha2::{Digest, Sha256};
+        let hex_digest = |s: &str| {
+            s.len() == 64
+                && s.bytes()
+                    .all(|c| c.is_ascii_digit() || (b'a'..=b'f').contains(&c))
+        };
+        if self.identifier.len() > 318
+            || self.authoritative_domain.is_empty()
+            || self.authoritative_domain.len() > 253
+            || !self
+                .identifier
+                .bytes()
+                .all(|c| c.is_ascii_alphanumeric() || b"@._+-".contains(&c))
+            || !self
+                .authoritative_domain
+                .bytes()
+                .all(|c| c.is_ascii_alphanumeric() || b".-".contains(&c))
+            || self.identifier.split_once('@').map(|(_, domain)| domain)
+                != Some(self.authoritative_domain.as_str())
+            || !hex_digest(self.payment_hash.as_str())
+            || !hex_digest(&self.recipient_contract_digest)
+            || !hex_digest(&self.invoice_id)
+            || self.invoice_id != format!("{:x}", Sha256::digest(request.invoice.as_bytes()))
+            || self.payment_hash != request.payment_hash
+        {
+            return Err(WalletError::Invalid("recipient provenance mismatch"));
+        }
+        Ok(())
+    }
+}
 #[derive(Clone, Debug, Serialize)]
 pub struct PaymentPlan {
     plan_id: String,
     request: PaymentRequest,
     available_balance: u64,
     policy: PolicyDecision,
+    #[serde(skip)]
+    action: Action,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    recipient_provenance: Option<RecipientProvenance>,
+    authorization_scope: String,
 }
 impl PaymentPlan {
+    pub fn authorization_scope(&self) -> &str {
+        &self.authorization_scope
+    }
+    pub fn recipient_provenance(&self) -> Option<&RecipientProvenance> {
+        self.recipient_provenance.as_ref()
+    }
     pub fn available_balance(&self) -> u64 {
         self.available_balance
     }
@@ -78,6 +145,12 @@ pub struct PaymentResult {
 struct Reservation {
     request: PaymentRequest,
     at: u64,
+    #[serde(default)]
+    authority: Option<ReservationAuthority>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    recipient_provenance: Option<RecipientProvenance>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    recipient_authorization_scope: Option<String>,
 }
 struct Journal {
     entries: Vec<Reservation>,
@@ -132,7 +205,17 @@ impl Journal {
                     .ok_or(WalletError::Invalid("daily spend overflow"))
             })
     }
+    #[cfg(test)]
     fn reserve(&mut self, request: PaymentRequest, now: u64) -> Result<(), WalletError> {
+        self.reserve_authorized(request, now, None, None)
+    }
+    fn reserve_authorized(
+        &mut self,
+        request: PaymentRequest,
+        now: u64,
+        authority: Option<ReservationAuthority>,
+        recipient_provenance: Option<RecipientProvenance>,
+    ) -> Result<(), WalletError> {
         if self.poisoned {
             return Err(WalletError::Invalid(
                 "journal write failed; restart and inspect state",
@@ -145,7 +228,23 @@ impl Journal {
         {
             return Err(WalletError::Duplicate);
         }
-        let entry = Reservation { request, at: now };
+        let recipient_authorization_scope = match &recipient_provenance {
+            Some(_) => Some(authorization_scope(
+                &authority
+                    .as_ref()
+                    .ok_or(WalletError::Invalid("missing recipient authority"))?
+                    .economic_action_id,
+                recipient_provenance.as_ref(),
+            )?),
+            None => None,
+        };
+        let entry = Reservation {
+            request,
+            at: now,
+            authority,
+            recipient_provenance,
+            recipient_authorization_scope,
+        };
         if let Some(file) = &mut self.file {
             self.poisoned = true;
             let mut bytes = serde_json::to_vec(&entry)?;
@@ -162,11 +261,24 @@ pub struct WalletService {
     node: Arc<dyn RgbNode>,
     policy: WalletPolicy,
     plans: HashMap<String, PaymentPlan>,
-    approvals: std::collections::HashSet<String>,
+    approvals: HashMap<String, String>,
     journal: Journal,
     sequence: u64,
+    tasks: std::sync::Mutex<HashMap<PaymentId, Action>>,
 }
 impl WalletService {
+    /// Application-owned carrier ceiling for recipient acquisition.
+    pub fn max_carrier_msat(&self) -> u64 {
+        self.policy.max_carrier_msat
+    }
+    /// Read-only reserved payments for activity; settlement must still be queried.
+    pub fn payment_history(&self) -> Vec<(PaymentRequest, u64)> {
+        self.journal
+            .entries
+            .iter()
+            .map(|entry| (entry.request.clone(), entry.at))
+            .collect()
+    }
     /// Read the authoritative, unconsumed plan without permitting mutation.
     pub fn plan(&self, plan_id: &str) -> Result<&PaymentPlan, WalletError> {
         self.plans.get(plan_id).ok_or(WalletError::UnknownPlan)
@@ -176,14 +288,109 @@ impl WalletService {
         policy: WalletPolicy,
         path: &Path,
     ) -> Result<Self, WalletError> {
+        let journal = Journal::open(path)?;
+        let mut tasks = HashMap::new();
+        for entry in &journal.entries {
+            if let Some(scope) = &entry.recipient_authorization_scope {
+                let authority = entry
+                    .authority
+                    .as_ref()
+                    .ok_or(WalletError::Invalid("missing recipient authority"))?;
+                if entry.recipient_provenance.is_none()
+                    || *scope
+                        != authorization_scope(
+                            &authority.economic_action_id,
+                            entry.recipient_provenance.as_ref(),
+                        )?
+                {
+                    return Err(WalletError::Invalid(
+                        "recipient authorization scope mismatch",
+                    ));
+                }
+            }
+            if let Some(provenance) = &entry.recipient_provenance {
+                provenance.validate(&entry.request)?;
+            }
+            tasks.insert(
+                entry.request.payment_hash.clone(),
+                Action::recover(
+                    TaskKind::RgbPayment,
+                    &entry.request,
+                    entry.authority.as_ref(),
+                )?,
+            );
+        }
         Ok(Self {
             node,
             policy,
             plans: HashMap::new(),
             approvals: Default::default(),
-            journal: Journal::open(path)?,
+            journal,
+            tasks: std::sync::Mutex::new(tasks),
             sequence: 0,
         })
+    }
+    /// Durable provenance for a reserved payment, including failed/uncertain submissions.
+    pub fn recipient_provenance(&self, hash: &PaymentId) -> Option<&RecipientProvenance> {
+        self.journal
+            .entries
+            .iter()
+            .find(|entry| &entry.request.payment_hash == hash)
+            .and_then(|entry| entry.recipient_provenance.as_ref())
+    }
+    /// Node-native receiving capability; creates no outgoing reservation.
+    pub async fn create_invoice(
+        &self,
+        request: &crate::rgb::CreateInvoice,
+    ) -> Result<crate::rgb::CreatedInvoice, WalletError> {
+        self.node.create_invoice(request).await
+    }
+    pub async fn node_payments(&self) -> Result<Vec<crate::rgb::NodePayment>, WalletError> {
+        self.node.list_payments().await
+    }
+    /// Recorded audit binding only; recovered reservations never restore approval.
+    pub fn recipient_authorization_scope(&self, hash: &PaymentId) -> Option<&str> {
+        self.journal
+            .entries
+            .iter()
+            .find(|entry| &entry.request.payment_hash == hash)
+            .and_then(|entry| entry.recipient_authorization_scope.as_deref())
+    }
+    pub fn plan_task(&self, plan_id: &str) -> Option<TaskSnapshot> {
+        self.plans.get(plan_id).map(|plan| plan.action.snapshot())
+    }
+    pub fn task(&self, hash: &PaymentId) -> Option<TaskSnapshot> {
+        self.tasks
+            .lock()
+            .expect("task lock")
+            .get(hash)
+            .map(Action::snapshot)
+            .or_else(|| {
+                self.plans
+                    .values()
+                    .find(|p| &p.request.payment_hash == hash)
+                    .map(|p| p.action.snapshot())
+            })
+    }
+    pub fn cancel(&mut self, plan_id: &str) -> Result<(), WalletError> {
+        let plan = self
+            .plans
+            .get_mut(plan_id)
+            .ok_or(WalletError::UnknownPlan)?;
+        plan.action.cancel()?;
+        self.approvals.remove(plan_id);
+        if !self
+            .journal
+            .entries
+            .iter()
+            .any(|entry| entry.request.payment_hash == plan.request.payment_hash)
+        {
+            self.tasks
+                .lock()
+                .expect("task lock")
+                .insert(plan.request.payment_hash.clone(), plan.action.clone());
+        }
+        Ok(())
     }
     pub async fn assets(&self) -> Result<Vec<rgb402_core::wallet::Asset>, WalletError> {
         self.node.list_assets().await
@@ -197,8 +404,34 @@ impl WalletService {
         Ok(request)
     }
     pub async fn prepare_payment(&mut self, invoice: &str) -> Result<PaymentPlan, WalletError> {
+        self.prepare_inner(invoice, None).await
+    }
+    /// Application bridge: metadata cannot change the decoded economic request or policy.
+    pub async fn prepare_recipient_invoice(
+        &mut self,
+        expected: &PaymentRequest,
+        provenance: RecipientProvenance,
+    ) -> Result<PaymentPlan, WalletError> {
+        provenance.validate(expected)?;
+        self.prepare_inner(&expected.invoice, Some((expected, provenance)))
+            .await
+    }
+    async fn prepare_inner(
+        &mut self,
+        invoice: &str,
+        bound: Option<(&PaymentRequest, RecipientProvenance)>,
+    ) -> Result<PaymentPlan, WalletError> {
         tracing::info!(event = "payment_requested");
         let request = self.decode(invoice).await?;
+        let recipient_provenance = match bound {
+            Some((expected, provenance)) => {
+                if &request != expected {
+                    return Err(WalletError::Invalid("acquired invoice details changed"));
+                }
+                Some(provenance)
+            }
+            None => None,
+        };
         let balance = self.balance(&request.asset_id).await?;
         let now = UnixTimestamp::now().seconds();
         let policy = self.policy.evaluate(
@@ -213,11 +446,25 @@ impl WalletService {
         if matches!(policy, PolicyDecision::RequireApproval { .. }) {
             tracing::info!(event = "approval_requested", %plan_id);
         }
+        let mut action = Action::new(TaskKind::RgbPayment, &request)?;
+        action.decoded()?;
+        action.validated()?;
+        action.policy(
+            matches!(policy, PolicyDecision::Allow),
+            matches!(policy, PolicyDecision::Deny { .. }),
+        )?;
+        let authorization_scope = authorization_scope(
+            &action.snapshot().economic_action_id,
+            recipient_provenance.as_ref(),
+        )?;
         let plan = PaymentPlan {
             plan_id: plan_id.clone(),
             request,
             available_balance: balance.offchain_outbound,
             policy,
+            action,
+            recipient_provenance,
+            authorization_scope,
         };
         self.plans.insert(plan_id, plan.clone());
         Ok(plan)
@@ -227,16 +474,32 @@ impl WalletService {
         if !self.plans.contains_key(plan_id) {
             return Err(WalletError::UnknownPlan);
         }
-        self.approvals.insert(plan_id.into());
+        let plan = self
+            .plans
+            .get_mut(plan_id)
+            .ok_or(WalletError::UnknownPlan)?;
+        if !matches!(plan.policy, PolicyDecision::Deny { .. }) {
+            plan.action.human()?;
+        }
+        self.approvals
+            .insert(plan_id.into(), plan.authorization_scope.clone());
         tracing::info!(event = "approval_received", %plan_id);
         Ok(())
     }
     pub async fn execute_payment(&mut self, plan_id: &str) -> Result<PaymentResult, WalletError> {
-        let plan = self
+        let mut plan = self
             .plans
             .get(plan_id)
             .ok_or(WalletError::UnknownPlan)?
             .clone();
+        if plan.authorization_scope
+            != authorization_scope(
+                &plan.action.snapshot().economic_action_id,
+                plan.recipient_provenance.as_ref(),
+            )?
+        {
+            return Err(WalletError::Invalid("plan authorization scope mismatch"));
+        }
         let request = self.decode(&plan.request.invoice).await?;
         if request != plan.request {
             return Err(WalletError::Invalid(
@@ -254,15 +517,33 @@ impl WalletService {
         tracing::info!(event = "policy_evaluated", %plan_id, decision = ?decision);
         match decision {
             PolicyDecision::Deny { reason } => return Err(WalletError::Denied(reason)),
-            PolicyDecision::RequireApproval { .. } if !self.approvals.contains(plan_id) => {
+            PolicyDecision::RequireApproval { .. }
+                if self.approvals.get(plan_id) != Some(&plan.authorization_scope) =>
+            {
                 return Err(WalletError::ApprovalRequired)
             }
             _ => {}
         }
-        self.journal.reserve(request.clone(), now)?;
+        let authority = plan.action.authority(&request)?;
+        self.journal.reserve_authorized(
+            request.clone(),
+            now,
+            Some(authority),
+            plan.recipient_provenance.clone(),
+        )?;
+        plan.action.reserved()?;
+        plan.action.submit()?;
+        self.tasks
+            .lock()
+            .expect("task lock")
+            .insert(request.payment_hash.clone(), plan.action);
         self.plans.remove(plan_id);
         self.approvals.remove(plan_id);
+        let hash = request.payment_hash.clone();
         let result = self.node.send_payment(&ApprovedPayment { request }).await;
+        if let Some(task) = self.tasks.lock().expect("task lock").get_mut(&hash) {
+            task.status(result.as_ref().ok().map(|r| &r.status))?;
+        }
         match &result {
             Ok(result) => {
                 tracing::info!(event = "payment_submitted", %plan_id, payment_hash = %result.payment_hash);
@@ -276,6 +557,9 @@ impl WalletService {
     }
     pub async fn payment_status(&self, hash: &PaymentId) -> Result<PaymentStatus, WalletError> {
         let status = self.node.payment_status(hash).await?;
+        if let Some(task) = self.tasks.lock().expect("task lock").get_mut(hash) {
+            task.status(Some(&status))?;
+        }
         audit_status(hash, &status);
         Ok(status)
     }
@@ -363,6 +647,7 @@ mod tests {
                 poisoned: false,
             },
             sequence: 0,
+            tasks: Default::default(),
         };
         (node, service)
     }
@@ -452,6 +737,12 @@ mod tests {
             w.execute_payment(p.plan_id()).await,
             Err(WalletError::Duplicate)
         ));
+        w.cancel(p.plan_id()).unwrap();
+        assert_eq!(
+            w.task(&p.request.payment_hash).unwrap().state,
+            crate::harness::State::Submitted
+        );
+        assert_eq!(node.calls.load(Ordering::SeqCst), 1);
     }
     #[tokio::test]
     async fn journal_survives_restart_and_locks() {
@@ -466,8 +757,29 @@ mod tests {
         let p = persistent.prepare_payment("one").await.unwrap();
         persistent.approve_from_human(p.plan_id()).unwrap();
         persistent.execute_payment(p.plan_id()).await.unwrap();
+        let recorded = std::fs::read_to_string(&path).unwrap();
+        let entry: serde_json::Value = serde_json::from_str(recorded.trim()).unwrap();
+        assert_eq!(entry["authority"]["source"], "human");
+        assert_eq!(
+            entry["authority"]["economic_action_id"],
+            persistent
+                .task(&p.request.payment_hash)
+                .unwrap()
+                .economic_action_id
+        );
         drop(persistent);
         let mut reopened = WalletService::open(node, w.policy, &path).unwrap();
+        assert_eq!(
+            reopened.task(&p.request.payment_hash).unwrap().state,
+            crate::harness::State::Uncertain
+        );
+        assert_eq!(
+            reopened
+                .task(&p.request.payment_hash)
+                .unwrap()
+                .authorization,
+            Some(crate::harness::Authorization::Human)
+        );
         assert!(matches!(
             reopened.prepare_payment("two").await.unwrap().policy(),
             PolicyDecision::Deny { .. }
@@ -501,5 +813,53 @@ mod tests {
         large.amount = u64::MAX;
         wallet.journal.reserve(large, 86_399).unwrap();
         assert!(wallet.journal.spent(&request.asset_id, 86_399).is_err());
+    }
+    #[tokio::test]
+    async fn cancellation_consumes_wallet_plan_without_submission() {
+        let (node, mut wallet) = setup();
+        let p = wallet.prepare_payment("cancelled").await.unwrap();
+        wallet.cancel(p.plan_id()).unwrap();
+        assert!(wallet.approve_from_human(p.plan_id()).is_err());
+        assert!(wallet.execute_payment(p.plan_id()).await.is_err());
+        assert_eq!(
+            wallet.task(&p.request.payment_hash).unwrap().state,
+            crate::harness::State::Cancelled
+        );
+        assert_eq!(node.calls.load(Ordering::SeqCst), 0);
+    }
+    #[tokio::test]
+    async fn legacy_reservation_recovers_without_inventing_authorization() {
+        let (node, wallet) = setup();
+        let request = wallet.decode("legacy").await.unwrap();
+        let path =
+            std::env::temp_dir().join(format!("harness-legacy-{}.jsonl", std::process::id()));
+        std::fs::write(
+            &path,
+            format!(
+                "{}\n",
+                serde_json::json!({"request":request,"at":UnixTimestamp::now().seconds()})
+            ),
+        )
+        .unwrap();
+        let mut policy = wallet.policy.clone();
+        policy.max_daily_spend = 100;
+        let mut recovered = WalletService::open(node.clone(), policy, &path).unwrap();
+        assert_eq!(
+            recovered.task(&request.payment_hash).unwrap().authorization,
+            Some(crate::harness::Authorization::LegacyUnknown)
+        );
+        recovered
+            .payment_status(&request.payment_hash)
+            .await
+            .unwrap();
+        let plan = recovered.prepare_payment("legacy").await.unwrap();
+        recovered.approve_from_human(plan.plan_id()).unwrap();
+        assert!(matches!(
+            recovered.execute_payment(plan.plan_id()).await,
+            Err(WalletError::Duplicate)
+        ));
+        assert_eq!(node.calls.load(Ordering::SeqCst), 0);
+        drop(recovered);
+        std::fs::remove_file(path).unwrap();
     }
 }
