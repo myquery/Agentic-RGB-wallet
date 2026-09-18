@@ -12,10 +12,10 @@ use rgb402_payment::{
 };
 use std::{
     collections::VecDeque,
-    sync::atomic::{AtomicU64, Ordering},
+    sync::atomic::{AtomicBool, AtomicU64, Ordering},
 };
 use tower::ServiceExt;
-struct Model(VecDeque<ModelResponse>);
+struct Model(VecDeque<ModelResponse>, Arc<AtomicU64>);
 #[async_trait]
 impl AgentModel for Model {
     async fn respond(
@@ -23,6 +23,7 @@ impl AgentModel for Model {
         _: &[Message],
         _: &[ToolDefinition],
     ) -> Result<ModelResponse, ModelError> {
+        self.1.fetch_add(1, Ordering::SeqCst);
         Ok(self
             .0
             .pop_front()
@@ -30,6 +31,7 @@ impl AgentModel for Model {
     }
 }
 struct Node {
+    fail_send: AtomicBool,
     sends: AtomicU64,
     amount: AtomicU64,
 }
@@ -76,6 +78,9 @@ impl RgbNode for Node {
     }
     async fn send_payment(&self, p: &ApprovedPayment) -> Result<PaymentResult, WalletError> {
         self.sends.fetch_add(1, Ordering::SeqCst);
+        if self.fail_send.load(Ordering::SeqCst) {
+            return Err(WalletError::Node("submission outcome unknown"));
+        }
         Ok(PaymentResult {
             payment_id: p.request().payment_hash.clone(),
             payment_hash: p.request().payment_hash.clone(),
@@ -98,6 +103,7 @@ struct Fixture {
     state: AppState<Model>,
     app: Router,
     node: Arc<Node>,
+    model_calls: Arc<AtomicU64>,
     path: std::path::PathBuf,
 }
 impl Drop for Fixture {
@@ -107,6 +113,7 @@ impl Drop for Fixture {
 }
 fn fixture() -> Fixture {
     let node = Arc::new(Node {
+        fail_send: AtomicBool::new(false),
         sends: AtomicU64::new(0),
         amount: AtomicU64::new(5),
     });
@@ -127,21 +134,26 @@ fn fixture() -> Fixture {
         &path,
     )
     .unwrap();
-    let model = Model(VecDeque::from([
-        call(
-            "wallet_prepare_payment",
-            serde_json::json!({"invoice":"invoice"}),
-        ),
-        call(
-            "wallet_execute_payment",
-            serde_json::json!({"plan_id":"hash-1"}),
-        ),
-    ]));
+    let model_calls = Arc::new(AtomicU64::new(0));
+    let model = Model(
+        VecDeque::from([
+            call(
+                "wallet_prepare_payment",
+                serde_json::json!({"invoice":"invoice"}),
+            ),
+            call(
+                "wallet_execute_payment",
+                serde_json::json!({"plan_id":"hash-1"}),
+            ),
+        ]),
+        model_calls.clone(),
+    );
     let state = AppState::new(WalletAgent::new(model, wallet)).unwrap();
     Fixture {
         app: router(state.clone()),
         state,
         node,
+        model_calls,
         path,
     }
 }
@@ -431,4 +443,146 @@ async fn approval_continuation_keeps_bound_plan_and_rejects_duplicate_click() {
         StatusCode::NOT_FOUND
     );
     assert_eq!(f.node.sends.load(Ordering::SeqCst), 1);
+}
+
+async fn prepare_direct_test(f: &Fixture) {
+    assert_eq!(
+        send(
+            f,
+            "POST",
+            "/api/send/prepare",
+            r#"{"invoice":"invoice"}"#,
+            true
+        )
+        .await
+        .status(),
+        StatusCode::ACCEPTED
+    );
+    idle(f).await;
+    assert_eq!(f.node.sends.load(Ordering::SeqCst), 0);
+    assert_eq!(f.model_calls.load(Ordering::SeqCst), 0);
+}
+#[tokio::test]
+async fn direct_send_uses_no_model_and_approval_executes_once() {
+    let f = fixture();
+    prepare_direct_test(&f).await;
+    assert!(f.state.0.session.lock().unwrap().direct_pending);
+    assert_eq!(
+        send(&f, "POST", "/api/approvals/wrong/approve", "{}", true)
+            .await
+            .status(),
+        StatusCode::NOT_FOUND
+    );
+    assert_eq!(
+        send(&f, "POST", "/api/approvals/hash-1/approve", "{}", true)
+            .await
+            .status(),
+        StatusCode::ACCEPTED
+    );
+    idle(&f).await;
+    assert_eq!(f.node.sends.load(Ordering::SeqCst), 1);
+    assert_eq!(f.model_calls.load(Ordering::SeqCst), 0);
+    assert_eq!(
+        send(&f, "POST", "/api/approvals/hash-1/approve", "{}", true)
+            .await
+            .status(),
+        StatusCode::NOT_FOUND
+    );
+    assert_eq!(f.node.sends.load(Ordering::SeqCst), 1);
+}
+#[tokio::test]
+async fn direct_cancel_and_changed_invoice_never_submit() {
+    for cancel in [true, false] {
+        let f = fixture();
+        prepare_direct_test(&f).await;
+        let action = if cancel {
+            "reject"
+        } else {
+            f.node.amount.store(50, Ordering::SeqCst);
+            "approve"
+        };
+        send(
+            &f,
+            "POST",
+            &format!("/api/approvals/hash-1/{action}"),
+            "{}",
+            true,
+        )
+        .await;
+        idle(&f).await;
+        assert_eq!(f.node.sends.load(Ordering::SeqCst), 0);
+        assert_eq!(f.model_calls.load(Ordering::SeqCst), 0);
+    }
+}
+#[tokio::test]
+async fn direct_prepare_rejects_injection_and_denied_policy() {
+    let f = fixture();
+    for body in [
+        r#"{"invoice":""}"#,
+        r#"{"invoice":"invoice","approve":true}"#,
+    ] {
+        assert_eq!(
+            send(&f, "POST", "/api/send/prepare", body, true)
+                .await
+                .status(),
+            StatusCode::BAD_REQUEST
+        );
+    }
+    assert_eq!(
+        send(
+            &f,
+            "POST",
+            "/api/send/prepare",
+            r#"{"invoice":"invoice"}"#,
+            false
+        )
+        .await
+        .status(),
+        StatusCode::FORBIDDEN
+    );
+    f.node.amount.store(101, Ordering::SeqCst);
+    prepare_direct_test(&f).await;
+    assert!(f.state.0.session.lock().unwrap().pending.is_none());
+}
+
+#[tokio::test]
+async fn direct_uncertain_submission_preserves_reservation_and_blocks_retry() {
+    let f = fixture();
+    f.node.fail_send.store(true, Ordering::SeqCst);
+    prepare_direct_test(&f).await;
+    send(&f, "POST", "/api/approvals/hash-1/approve", "{}", true).await;
+    idle(&f).await;
+    assert_eq!(f.node.sends.load(Ordering::SeqCst), 1);
+    assert!(!std::fs::read_to_string(&f.path).unwrap().is_empty());
+    send(
+        &f,
+        "POST",
+        "/api/send/prepare",
+        r#"{"invoice":"invoice"}"#,
+        true,
+    )
+    .await;
+    idle(&f).await;
+    let retry_id = f
+        .state
+        .0
+        .session
+        .lock()
+        .unwrap()
+        .pending
+        .as_ref()
+        .unwrap()
+        .plan_id
+        .clone();
+    send(
+        &f,
+        "POST",
+        &format!("/api/approvals/{retry_id}/approve"),
+        "{}",
+        true,
+    )
+    .await;
+    idle(&f).await;
+    assert_eq!(f.node.sends.load(Ordering::SeqCst), 1);
+    assert_eq!(f.model_calls.load(Ordering::SeqCst), 0);
 }

@@ -115,3 +115,11 @@ No invoice or payment was created for this acceptance.
 
 This fresh payment was not performed during implementation. Deterministic
 non-agent Send remains a follow-up; no second sender pipeline was introduced.
+
+## Receiving addresses
+
+Receive now offers Copy address above the manual invoice form. The launchers use
+`RECIPIENT_DOMAIN` or the public `.var/regtest/recipient-domain` file to configure
+`alice@<domain>` and `bob@<domain>` independently. The restricted public service
+maps each address to its own node. No automatic Lightning-peer/contact discovery
+is implied; see [recipient service configuration](recipient-service.md).

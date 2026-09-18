@@ -15,9 +15,10 @@ pub struct LightningInvoice {
     pub amount_sats: u64,
     pub expires_at: u64,
 }
-/// Only the deterministic purchase service can construct execution authority.
-pub struct ApprovedMachinePayment(pub(crate) LightningInvoice);
-impl ApprovedMachinePayment {
+/// Only deterministic payment services in this crate can construct execution authority.
+pub struct ApprovedLightningPayment(pub(crate) LightningInvoice);
+pub use ApprovedLightningPayment as ApprovedMachinePayment;
+impl ApprovedLightningPayment {
     pub fn invoice(&self) -> &LightningInvoice {
         &self.0
     }
@@ -54,6 +55,10 @@ pub trait LightningNode: Send + Sync {
     ) -> Result<LightningInvoice, WalletError>;
     async fn decode_btc_invoice(&self, invoice: &str) -> Result<LightningInvoice, WalletError>;
     async fn outbound_sats(&self) -> Result<u64, WalletError>;
+    /// Capacity on a usable channel whose negotiated minimum permits this payment.
+    async fn outbound_sats_for(&self, _amount_sats: u64) -> Result<u64, WalletError> {
+        self.outbound_sats().await
+    }
     async fn send_btc(
         &self,
         payment: &ApprovedMachinePayment,
@@ -137,39 +142,10 @@ impl LightningNode for RgbLightningClient {
         })
     }
     async fn outbound_sats(&self) -> Result<u64, WalletError> {
-        #[derive(Deserialize)]
-        struct Channels {
-            channels: Vec<Channel>,
-        }
-        #[derive(Deserialize)]
-        struct Channel {
-            is_usable: bool,
-            next_outbound_htlc_limit_msat: u64,
-        }
-        let response = self
-            .http
-            .get(
-                self.base
-                    .join("listchannels")
-                    .map_err(|_| WalletError::Node("invalid endpoint"))?,
-            )
-            .send()
-            .await
-            .map_err(|_| WalletError::Node("balance transport failed"))?;
-        if !response.status().is_success() {
-            return Err(WalletError::Http(response.status().as_u16()));
-        }
-        let d: Channels = response
-            .json()
-            .await
-            .map_err(|_| WalletError::Node("invalid channel balance"))?;
-        // A single payment must fit a usable channel; conservative for this direct-channel demo.
-        Ok(d.channels
-            .iter()
-            .filter(|c| c.is_usable)
-            .map(|c| c.next_outbound_htlc_limit_msat / 1000)
-            .max()
-            .unwrap_or(0))
+        self.channel_capacity(None).await
+    }
+    async fn outbound_sats_for(&self, amount_sats: u64) -> Result<u64, WalletError> {
+        self.channel_capacity(Some(amount_sats)).await
     }
     async fn send_btc(
         &self,
@@ -228,6 +204,54 @@ impl LightningNode for RgbLightningClient {
     }
 }
 
+impl RgbLightningClient {
+    async fn channel_capacity(&self, amount_sats: Option<u64>) -> Result<u64, WalletError> {
+        #[derive(Deserialize)]
+        struct Channels {
+            channels: Vec<Channel>,
+        }
+        #[derive(Deserialize)]
+        struct Channel {
+            is_usable: bool,
+            next_outbound_htlc_limit_msat: u64,
+            next_outbound_htlc_minimum_msat: Option<u64>,
+        }
+        let response = self
+            .http
+            .get(
+                self.base
+                    .join("listchannels")
+                    .map_err(|_| WalletError::Node("invalid endpoint"))?,
+            )
+            .send()
+            .await
+            .map_err(|_| WalletError::Node("balance transport failed"))?;
+        if !response.status().is_success() {
+            return Err(WalletError::Http(response.status().as_u16()));
+        }
+        let d: Channels = response
+            .json()
+            .await
+            .map_err(|_| WalletError::Node("invalid channel balance"))?;
+        // A single payment must fit a usable channel; conservative for this direct-channel demo.
+        Ok(d.channels
+            .iter()
+            .filter(|c| {
+                c.is_usable
+                    && amount_sats.map_or(true, |amount| {
+                        amount.checked_mul(1000).is_some_and(|msat| {
+                            c.next_outbound_htlc_minimum_msat
+                                .is_some_and(|minimum| msat >= minimum)
+                                && msat <= c.next_outbound_htlc_limit_msat
+                        })
+                    })
+            })
+            .map(|c| c.next_outbound_htlc_limit_msat / 1000)
+            .max()
+            .unwrap_or(0))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -269,7 +293,7 @@ mod tests {
                 _ => unreachable!(),
             })
         }
-        let app=Router::new().route("/lninvoice",post(handler)).route("/decodelninvoice",post(handler)).route("/sendpayment",post(handler)).route("/getpayment",post(handler)).route("/listchannels",get(||async{Json(serde_json::json!({"channels":[{"is_usable":true,"next_outbound_htlc_limit_msat":1000000}]}))})).with_state(seen.clone());
+        let app=Router::new().route("/lninvoice",post(handler)).route("/decodelninvoice",post(handler)).route("/sendpayment",post(handler)).route("/getpayment",post(handler)).route("/listchannels",get(||async{Json(serde_json::json!({"channels":[{"is_usable":true,"next_outbound_htlc_limit_msat":1000000,"next_outbound_htlc_minimum_msat":3000}]}))})).with_state(seen.clone());
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let url = format!("http://{}", listener.local_addr().unwrap());
         let server = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
@@ -277,6 +301,9 @@ mod tests {
         let invoice = node.create_invoice(3, 100).await.unwrap();
         assert_eq!(invoice.amount_sats, 3);
         assert_eq!(node.outbound_sats().await.unwrap(), 1000);
+        assert_eq!(node.outbound_sats_for(2).await.unwrap(), 0);
+        assert_eq!(node.outbound_sats_for(3).await.unwrap(), 1000);
+        assert_eq!(node.outbound_sats_for(1001).await.unwrap(), 0);
         node.send_btc(&ApprovedMachinePayment(invoice.clone()))
             .await
             .unwrap();

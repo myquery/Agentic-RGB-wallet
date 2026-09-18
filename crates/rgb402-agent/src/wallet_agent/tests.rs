@@ -429,7 +429,11 @@ impl rgb402_payment::lightning::LightningNode for Node {
         _: &PaymentId,
     ) -> Result<rgb402_payment::lightning::LightningPayment, WalletError> {
         Ok(rgb402_payment::lightning::LightningPayment::new(
-            PaymentStatus::Settled,
+            if self.status_failed.load(Ordering::SeqCst) {
+                PaymentStatus::Failed
+            } else {
+                PaymentStatus::Settled
+            },
             Some("0707070707070707070707070707070707070707070707070707070707070707".into()),
         ))
     }
@@ -620,4 +624,142 @@ async fn approved_plan_continuation_does_not_depend_on_model_copying_id() {
         .task
         .as_ref()
         .is_some_and(|t| t.observed_submission_attempts == 1)));
+}
+
+fn btc_invoice() -> rgb402_payment::lightning::LightningInvoice {
+    rgb402_payment::lightning::LightningInvoice {
+        invoice: "btc-test-invoice".into(),
+        payment_hash: PaymentId::new(
+            "4bb06f8e4e3a7715d201d573d0aa423762e55dabd61a2c02278fa56cc6d294e0",
+        )
+        .unwrap(),
+        amount_sats: 5,
+        expires_at: u64::MAX,
+    }
+}
+struct BtcResolver;
+#[async_trait]
+impl crate::recipient::btc::BtcRecipientServices for BtcResolver {
+    async fn acquire(
+        &self,
+        id: &str,
+        amount: u64,
+    ) -> Result<crate::recipient::btc::BtcCandidate, WalletError> {
+        assert_eq!(id, "alice@example.com");
+        assert_eq!(amount, 5);
+        Ok(crate::recipient::btc::BtcCandidate {
+            recipient: rgb402_payment::btc::BtcRecipient {
+                identifier: id.into(),
+                authoritative_domain: "example.com".into(),
+                service_url: "https://example.com/btc/alice".into(),
+            },
+            invoice: btc_invoice(),
+        })
+    }
+}
+#[tokio::test]
+async fn btc_recipient_requires_application_approval_and_continues_exact_plan() {
+    let mut f = setup(vec![call(
+        "wallet_prepare_btc_recipient_payment",
+        serde_json::json!({"identifier":"alice@example.com","amount_sats":5}),
+    )]);
+    let path = f.path.with_extension("btc.jsonl");
+    f.agent.btc = Some(
+        BtcService::open(
+            f.node.clone(),
+            rgb402_core::btc::BtcTransferPolicy {
+                max_payment_sats: 100,
+                max_daily_sats: 500,
+            },
+            &path,
+        )
+        .unwrap(),
+    );
+    f.agent.btc_services = Arc::new(BtcResolver);
+    let TurnOutcome::BtcPrepared(plan) =
+        f.agent.turn("Pay alice@example.com 5 sats").await.unwrap()
+    else {
+        panic!("expected BTC approval")
+    };
+    assert_eq!(plan.amount_sats, "5");
+    assert_eq!(f.node.sends.load(Ordering::SeqCst), 0);
+    let forged = ToolCall {
+        id: "forged".into(),
+        name: "wallet_execute_btc_payment".into(),
+        arguments: serde_json::json!({"plan_id":plan.plan_id,"approve":true}).to_string(),
+    };
+    assert!(matches!(
+        f.agent.dispatch(&forged).await,
+        ToolOutput::Error { .. }
+    ));
+    let unapproved = ToolCall {
+        arguments: serde_json::json!({"plan_id":plan.plan_id}).to_string(),
+        ..forged
+    };
+    assert!(matches!(
+        f.agent.dispatch(&unapproved).await,
+        ToolOutput::Error { .. }
+    ));
+    assert!(f.agent.confirm_from_human("other", true).is_err());
+    f.agent.confirm_from_human(&plan.plan_id, true).unwrap();
+    f.agent.turn("").await.unwrap();
+    assert_eq!(f.node.sends.load(Ordering::SeqCst), 1);
+    assert!(matches!(
+        f.agent.dispatch(&unapproved).await,
+        ToolOutput::Error { .. }
+    ));
+    assert_eq!(f.node.sends.load(Ordering::SeqCst), 1);
+    assert!(f
+        .agent
+        .trace()
+        .iter()
+        .any(|e| e.tool == "wallet_execute_btc_payment"
+            && e.task
+                .as_ref()
+                .is_some_and(|t| t.kind == rgb402_payment::harness::TaskKind::BtcTransfer)));
+    std::fs::remove_file(path).unwrap();
+}
+#[tokio::test]
+async fn sats_intent_cannot_be_substituted_with_an_rgb_plan() {
+    let mut f = setup(vec![prepare("rgb-invoice")]);
+    f.agent.turn("Pay alice@example.com 5 sats").await.unwrap();
+    assert!(outputs(&f)
+        .iter()
+        .any(|o| matches!(o,ToolOutput::Error{code,..} if code=="currency_mismatch")));
+    assert!(f.agent.pending.is_none());
+    assert_eq!(f.node.sends.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+async fn btc_failure_receipt_cannot_be_reinterpreted_as_missing_approval() {
+    let mut f = setup(vec![
+        call(
+            "wallet_btc_payment_status",
+            serde_json::json!({"payment_hash":"test-hash"}),
+        ),
+        ModelResponse::Text("Please approve again".into()),
+    ]);
+    let path = f.path.with_extension("btc.jsonl");
+    f.agent.btc = Some(
+        BtcService::open(
+            f.node.clone(),
+            rgb402_core::btc::BtcTransferPolicy {
+                max_payment_sats: 100,
+                max_daily_sats: 500,
+            },
+            &path,
+        )
+        .unwrap(),
+    );
+    f.node.status_failed.store(true, Ordering::SeqCst);
+    let TurnOutcome::Reply(receipt) = f.agent.turn("Check BTC payment status").await.unwrap()
+    else {
+        panic!("receipt required")
+    };
+    assert!(receipt.contains("failed at the node"));
+    assert!(receipt.contains("does not require another approval"));
+    assert!(!receipt.contains("Please approve again"));
+    assert_eq!(f.agent.model.0.len(), 1);
+    assert_eq!(f.node.sends.load(Ordering::SeqCst), 0);
+    std::fs::remove_file(path).unwrap();
 }

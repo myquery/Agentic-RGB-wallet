@@ -416,3 +416,5 @@ pub mod commerce;
 pub mod lightning;
 
 pub mod harness;
+
+pub mod btc;

@@ -1,12 +1,13 @@
 export type Status='pending'|'settled'|'failed'|'uncertain';
 export interface Asset {asset_id:string;name:string;ticker:string;precision:number}
 export interface Holding {asset:Asset;outbound:string;onchain:string}
-export interface Wallet {wallet_name?:string;holdings:Holding[];sats:null;network:string}
+export interface Wallet {btc_outbound_sats?:string|null;btc_policy?:{max_payment_sats:string;max_daily_sats:string;human_approval_required:boolean}|null;commerce_enabled?:boolean;policy?:{auto_approve_below:string;max_single_payment:string;max_daily_spend:string;max_carrier_msat:string};wallet_name?:string;recipient_address?:string|null;holdings:Holding[];sats:null;network:string}
 export interface Plan {recipient?:{identifier:string;authoritative_domain:string};plan_id:string;request:{asset_id:string;amount:string;invoice:string;payment_hash:string;carrier_msat:string;expires_at:number};available_balance:string;policy:{decision:string;reason?:string}}
+export interface BtcPlan {plan_id:string;recipient:{identifier:string;authoritative_domain:string};amount_sats:string;available_sats:string;payment_hash:string;expires_at:number;policy:{decision:string;reason?:string}}
 export interface MachinePlan {plan_id:string;url:string;cost_sats:number;available_sats:number;auto_approve_up_to_sats:number;policy:{decision:string;reason?:string}}
 export interface Purchase {resource_status:string;url:string;cost_sats:number;auto_approved:boolean;auto_approve_up_to_sats:number;policy:{decision:string;reason?:string};payment_hash:string|null;payment_status:Status|null;http_status:number|null;resource:Record<string,unknown>|null;plan:MachinePlan|null}
-export interface Activity {kind?:"rgb_transfer"|"machine_purchase";resource?:string;auto_approved?:boolean;payment_hash:string;asset_id:string;amount:string;timestamp:number;direction:string;status:Status}
-export interface Session {machine_pending?:MachinePlan|null;machine_result?:Purchase|null;csrf:string;busy:boolean;pending:Plan|null;events:{id:number;kind:string;text:string}[]}
+export interface Activity {kind?:"rgb_transfer"|"machine_purchase"|"btc_transfer";resource?:string;auto_approved?:boolean;payment_hash:string;asset_id:string;amount:string;timestamp:number;direction:string;status:Status}
+export interface Session {btc_pending?:BtcPlan|null;machine_pending?:MachinePlan|null;machine_result?:Purchase|null;csrf:string;busy:boolean;pending:Plan|null;events:{id:number;kind:string;text:string}[]}
 export class ApiError extends Error {constructor(public status:number,message:string){super(message)}}
 export async function api<T>(path:string,csrf?:string,body?:object):Promise<T> {
   const response=await fetch(`/api${path}`,{method:body===undefined?'GET':'POST',headers:body===undefined?{}:{'Content-Type':'application/json','X-Wallet-CSRF':csrf??''},body:body===undefined?undefined:JSON.stringify(body),cache:'no-store'});

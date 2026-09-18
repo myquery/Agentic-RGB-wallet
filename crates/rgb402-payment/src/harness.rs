@@ -8,6 +8,7 @@ use sha2::{Digest, Sha256};
 #[serde(rename_all = "snake_case")]
 pub enum TaskKind {
     RgbPayment,
+    BtcTransfer,
     L402Resource,
 }
 /// The full immutable parameters stay in the service plan/journal. This contract
@@ -115,7 +116,7 @@ impl Action {
             economic_action_id: self.snapshot.economic_action_id.clone(),
             kind: self.snapshot.kind,
             completion: match self.snapshot.kind {
-                TaskKind::RgbPayment => Completion::NodeSettlement,
+                TaskKind::RgbPayment | TaskKind::BtcTransfer => Completion::NodeSettlement,
                 TaskKind::L402Resource => Completion::SettledPaymentAndAuthenticatedResource,
             },
         }
@@ -126,12 +127,12 @@ impl Action {
     pub(crate) fn decoded(&mut self) -> Result<(), WalletError> {
         self.step(
             State::Requested,
-            if self.snapshot.kind == TaskKind::RgbPayment {
+            if self.snapshot.kind != TaskKind::L402Resource {
                 State::Decoded
             } else {
                 State::Challenged
             },
-            if self.snapshot.kind == TaskKind::RgbPayment {
+            if self.snapshot.kind != TaskKind::L402Resource {
                 Event::Decoded
             } else {
                 Event::Challenged
@@ -139,7 +140,7 @@ impl Action {
         )
     }
     pub(crate) fn validated(&mut self) -> Result<(), WalletError> {
-        let from = if self.snapshot.kind == TaskKind::RgbPayment {
+        let from = if self.snapshot.kind != TaskKind::L402Resource {
             State::Decoded
         } else {
             State::Challenged

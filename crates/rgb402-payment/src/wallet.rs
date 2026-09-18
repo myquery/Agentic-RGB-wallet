@@ -339,6 +339,9 @@ impl WalletService {
             .and_then(|entry| entry.recipient_provenance.as_ref())
     }
     /// Node-native receiving capability; creates no outgoing reservation.
+    pub fn policy_limits(&self) -> &rgb402_core::wallet::WalletPolicy {
+        &self.policy
+    }
     pub async fn create_invoice(
         &self,
         request: &crate::rgb::CreateInvoice,

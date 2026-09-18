@@ -1,0 +1,44 @@
+{
+  "timestamp": "2026-09-18T05:55:45.171410+00:00",
+  "scope": "Read-only activation check; no invoice issued, plan prepared, approval given or payment submitted",
+  "addresses": {
+    "alice": {
+      "subject": "acct:alice@3f0e-102-88-113-62.ngrok-free.app",
+      "links": {
+        "https://rgb402.example/relations/rgb-invoice": "https://3f0e-102-88-113-62.ngrok-free.app/rgb/invoice/alice",
+        "https://rgb402.example/relations/btc-invoice": "https://3f0e-102-88-113-62.ngrok-free.app/btc/invoice/alice"
+      }
+    },
+    "bob": {
+      "subject": "acct:bob@3f0e-102-88-113-62.ngrok-free.app",
+      "links": {
+        "https://rgb402.example/relations/rgb-invoice": "https://3f0e-102-88-113-62.ngrok-free.app/rgb/invoice/bob",
+        "https://rgb402.example/relations/btc-invoice": "https://3f0e-102-88-113-62.ngrok-free.app/btc/invoice/bob"
+      }
+    }
+  },
+  "wallets": {
+    "alice": {
+      "wallet_name": "Alice Wallet",
+      "recipient_address": "alice@3f0e-102-88-113-62.ngrok-free.app",
+      "btc_policy": {
+        "max_payment_sats": "100",
+        "max_daily_sats": "500",
+        "human_approval_required": true
+      },
+      "btc_outbound_sats": "10000",
+      "commerce_enabled": true
+    },
+    "bob": {
+      "wallet_name": "Bob Wallet",
+      "recipient_address": "bob@3f0e-102-88-113-62.ngrok-free.app",
+      "btc_policy": {
+        "max_payment_sats": "100",
+        "max_daily_sats": "500",
+        "human_approval_required": true
+      },
+      "btc_outbound_sats": "10000",
+      "commerce_enabled": false
+    }
+  }
+}

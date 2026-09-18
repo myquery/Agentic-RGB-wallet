@@ -1,6 +1,7 @@
 //! Non-economic WebFinger discovery. No wallet, node, journal or model dependencies.
 pub mod acquisition;
 pub mod bridge;
+pub mod btc;
 mod https;
 use async_trait::async_trait;
 #[cfg(test)]
@@ -15,6 +16,7 @@ use std::{
 };
 
 /// Experimental application vocabulary; not a registered standard or fetched URL.
+pub const BTC_INVOICE_REL: &str = "https://rgb402.example/relations/btc-invoice";
 pub const RGB_INVOICE_REL: &str = "https://rgb402.example/relations/rgb-invoice";
 pub const MAX_RESPONSE_BYTES: usize = 16 * 1024;
 pub const MAX_OBSERVATION_BYTES: usize = 1024;
@@ -183,10 +185,18 @@ async fn resolve_with(
     transport: &dyn Transport,
     deadline: Duration,
 ) -> DiscoveryResult {
+    resolve_relation_with(identifier, transport, deadline, RGB_INVOICE_REL).await
+}
+async fn resolve_relation_with(
+    identifier: &str,
+    transport: &dyn Transport,
+    deadline: Duration,
+    relation: &str,
+) -> DiscoveryResult {
     let result = async {
         let account = Account::parse(identifier)?;
         let response = transport.get(account.url()?).await?;
-        validate_response(&account, response)
+        validate_relation_response(&account, response, relation)
     };
     match tokio::time::timeout(deadline, result).await {
         Ok(Ok(recipient)) => DiscoveryResult::Resolved { recipient },
@@ -244,9 +254,17 @@ struct Link {
     rel: String,
     href: Option<String>,
 }
+#[cfg(test)]
 fn validate_response(
     account: &Account,
     response: Response,
+) -> Result<RecipientDescriptor, DiscoveryError> {
+    validate_relation_response(account, response, RGB_INVOICE_REL)
+}
+fn validate_relation_response(
+    account: &Account,
+    response: Response,
+    relation: &str,
 ) -> Result<RecipientDescriptor, DiscoveryError> {
     validate_status(response.status)?;
     validate_media_type(&response.content_type)?;
@@ -258,7 +276,7 @@ fn validate_response(
     if jrd.subject != account.subject() {
         return Err(DiscoveryError::SubjectMismatch);
     }
-    let mut supported = jrd.links.iter().filter(|link| link.rel == RGB_INVOICE_REL);
+    let mut supported = jrd.links.iter().filter(|link| link.rel == relation);
     let link = supported.next().ok_or(DiscoveryError::MissingRelation)?;
     if supported.next().is_some() {
         return Err(DiscoveryError::AmbiguousRelation);
@@ -294,7 +312,11 @@ fn validate_response(
         subject: jrd.subject,
         authoritative_domain: account.domain.clone(),
         service: InvoiceService {
-            kind: "rgb_invoice",
+            kind: if relation == BTC_INVOICE_REL {
+                "btc_invoice"
+            } else {
+                "rgb_invoice"
+            },
             url: endpoint.to_string(),
         },
     })

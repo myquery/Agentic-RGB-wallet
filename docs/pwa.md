@@ -50,8 +50,9 @@ server. The backend must be running for real data; no mock balances replace it.
 
 Home shows outbound RGB balance, separate on-chain RGB, and recent activity.
 The Home sats total remains explicitly unavailable. The machine-purchase service
-separately checks conservative BTC Lightning outbound capacity for its plans. Send routes to the agent composer, where a full RGB Lightning invoice
-can be pasted. Agent tool outputs become wallet-action messages rather than raw
+separately checks conservative BTC Lightning outbound capacity for its plans. Send opens a direct RGB Lightning invoice sheet: paste, review the decoded plan,
+and approve. It makes no model request. Natural-language payments remain available
+in the Agent tab. Agent tool outputs become wallet-action messages rather than raw
 JSON. Model explanations, user messages, wallet actions and approval are labeled
 separately. Amount formatting uses integer arithmetic, including large values.
 
@@ -59,8 +60,8 @@ Preparing a plan pauses the agent. The dedicated confirmation sheet shows the
 server's exact amount, asset, invoice/hash, carrier, available balance and policy.
 The browser posts `{}` to the plan-specific approval/rejection URL. It cannot
 supply an amount, asset or destination with approval. Cancel does not execute.
-Approving resumes the existing agent loop, which calls the execution tool with
-the already-bound plan ID. WalletService rechecks the invoice and policy and
+Approval executes the already-bound plan through the existing wallet execution
+path. Direct Send does not invoke the model; agent requests resume the agent loop. WalletService rechecks the invoice and policy and
 reserves the payment before submission, exactly as in the CLI.
 
 The browser polls session progress every 1.5 seconds. Agent work runs in a
@@ -174,3 +175,42 @@ See the [acceptance record](acceptance/pwa-rgb-lightning-payment.json),
 [Home after](acceptance/pwa-home-after.png),
 [Agent receipt](acceptance/pwa-agent-result.png), and
 [desktop layout](acceptance/pwa-desktop-home.png).
+
+## Wallet UX and direct invoice Send
+
+Wallet identity remains visible across tabs. Settings displays configured RGB
+policy limits in base units per asset (daily accounting uses UTC). Direct invoice
+Send always presents application confirmation, including amounts below the automatic
+threshold. Denied plans cannot be approved. Duplicate approval is rejected; execution
+still revalidates the invoice, policy and balance and persists the reservation before
+submission. Uncertain submission must be checked in Activity, never automatically retried.
+
+`POST /api/send/prepare` accepts only `{ "invoice": "..." }` with the existing
+same-origin and CSRF checks. It prepares asynchronously and exposes the immutable
+plan through `/api/session`; the existing plan-specific approve/reject endpoints
+remain the only browser approval mechanism.
+
+For wallet operations without OpenAI, explicitly start with:
+
+```bash
+WALLET_AGENT_ENABLED=false ./scripts/wallet/api.sh alice
+WALLET_AGENT_ENABLED=false ./scripts/wallet/api.sh bob
+```
+
+Normal mode still requires `OPENAI_API_KEY` at startup. Disabled mode performs no
+model requests and chat explains that the agent is disabled. Direct Send, Receive,
+balances and Activity work in this mode.
+
+The UI distinguishes loading, unavailable and cached balances. Recovered connectivity
+clears connection errors without erasing action errors. Pending rows indicate active
+status refresh. Merchant suggestions appear only when commerce is configured.
+Receive capacity is not yet exposed; outbound balance is spendable capacity, not an
+estimate of what the wallet can receive.
+
+## Human BTC addresses
+
+The Agent supports sats to the configured public recipient addresses with a
+separate **Confirm BTC payment** sheet. It always requires human approval, uses
+separate BTC limits/journal, and shows BTC Activity in sats. See
+[BTC recipient payments](btc-recipient-payments.md). The direct invoice Send sheet
+continues to accept RGB invoices.

@@ -7,6 +7,21 @@ pub fn model_observation(output: &ToolOutput) -> Value {
     let mut value = serde_json::to_value(output)
         .unwrap_or_else(|_| json!({"type":"error","code":"observation_unavailable"}));
     match output {
+        ToolOutput::BtcPlan { plan } => {
+            value["plan"]["recipient"]
+                .as_object_mut()
+                .unwrap()
+                .remove("service_url");
+            value["payment_authorized"] = json!(false);
+            value["next_allowed_actions"] = if matches!(
+                plan.policy,
+                rgb402_core::wallet::PolicyDecision::Deny { .. }
+            ) {
+                json!([])
+            } else {
+                json!(["await_application_authorization"])
+            };
+        }
         ToolOutput::Invoice { .. } => {
             value["request"].as_object_mut().unwrap().remove("invoice");
             value["next_allowed_actions"] = json!(["prepare_payment"]);
@@ -53,7 +68,7 @@ pub fn model_observation(output: &ToolOutput) -> Value {
                 json!(["await_application_authorization"])
             };
         }
-        ToolOutput::Payment { status, .. } => {
+        ToolOutput::Payment { status, .. } | ToolOutput::BtcPayment { status, .. } => {
             value["next_allowed_actions"] = match status {
                 OutcomeStatus::Pending | OutcomeStatus::Uncertain => json!(["query_status"]),
                 _ => json!([]),

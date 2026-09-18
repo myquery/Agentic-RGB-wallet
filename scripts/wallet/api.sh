@@ -18,4 +18,11 @@ else
   export WALLET_STATE_PATH="$PWD/.var/regtest/bob-wallet-state.json"
   export MACHINE_STATE_PATH="$PWD/.var/regtest/bob-machine-state.jsonl"
 fi
+# Public identity only; no credentials are stored in this file.
+if [[ -z "${RECIPIENT_DOMAIN:-}" && -f .var/regtest/recipient-domain ]]; then
+  IFS= read -r RECIPIENT_DOMAIN < .var/regtest/recipient-domain
+fi
+if [[ -n "${RECIPIENT_DOMAIN:-}" ]]; then
+  export WALLET_RECIPIENT_ADDRESS="$role@$RECIPIENT_DOMAIN"
+fi
 exec cargo run -p buyer-agent --bin api

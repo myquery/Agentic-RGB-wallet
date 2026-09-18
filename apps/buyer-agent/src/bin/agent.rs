@@ -41,8 +41,9 @@ async fn start() -> Result<(), Box<dyn std::error::Error>> {
         &config.node_url,
         config.node_token.as_deref(),
     )?);
-    let wallet = WalletService::open(node, config.policy, &config.state_path)?;
-    let mut agent = WalletAgent::new(model, wallet);
+    let wallet = WalletService::open(node.clone(), config.policy, &config.state_path)?;
+    let btc = rgb402_payment::btc::BtcService::from_env(node.clone(), &config.state_path)?;
+    let mut agent = WalletAgent::new(model, wallet).with_btc(btc);
     run(&mut agent, &mut io::stdin().lock(), &mut io::stdout()).await?;
     Ok(())
 }
@@ -113,6 +114,22 @@ async fn run<M: AgentModel>(
                 Err(error) => {
                     writeln!(output,"Model error: {error}. Wallet results above remain authoritative; a model error does not cancel a submitted payment.")?;
                     break;
+                }
+                Ok(TurnOutcome::BtcPrepared(plan)) => {
+                    writeln!(output,"Application BTC payment confirmation\nRecipient: {}\nAmount: {} sats\nAvailable: {} sats\nPayment hash: {}\nPlan ID: {}\nPolicy: human approval required; routing fees node-managed",terminal_text(&plan.recipient.identifier),plan.amount_sats,plan.available_sats,plan.payment_hash,plan.plan_id)?;
+                    write!(output, "Approve this exact BTC regtest payment? [y/N] ")?;
+                    output.flush()?;
+                    let mut answer = String::new();
+                    input.read_line(&mut answer)?;
+                    let yes = matches!(answer.trim().to_ascii_lowercase().as_str(), "y" | "yes");
+                    agent
+                        .confirm_from_human(&plan.plan_id, yes)
+                        .map_err(io::Error::other)?;
+                    if !yes {
+                        writeln!(output, "Payment cancelled.")?;
+                        break;
+                    }
+                    message = "";
                 }
                 Ok(TurnOutcome::MachinePrepared(_)) => {
                     eprintln!("Machine approval requires the PWA application.");

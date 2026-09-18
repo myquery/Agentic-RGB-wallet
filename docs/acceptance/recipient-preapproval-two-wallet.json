@@ -1,0 +1,85 @@
+{
+  "timestamp": "2026-09-17T16:00:52.708129+00:00",
+  "exact_request": "Pay alice@3f0e-102-88-113-62.ngrok-free.app 5 R402USD.",
+  "pending_plan": {
+    "plan_id": "93e3900dfed3fd80e6b704dfd6d707301bd5c2cad3427694ac321a916832ccba-2",
+    "request": {
+      "asset_id": "rgb:KigwNgFx-bh7pHa~-Q7gi49D-ncmlxS5-~~44UbJ-g0Ienok",
+      "amount": "5",
+      "payment_hash": "93e3900dfed3fd80e6b704dfd6d707301bd5c2cad3427694ac321a916832ccba",
+      "expires_at": 1789664254,
+      "network": "Regtest",
+      "carrier_msat": "3000000"
+    },
+    "available_balance": "490",
+    "policy": {
+      "decision": "require_approval",
+      "reason": "amount meets or exceeds auto approval threshold"
+    },
+    "application_confirmation_required": true,
+    "recipient": {
+      "identifier": "alice@3f0e-102-88-113-62.ngrok-free.app",
+      "authoritative_domain": "3f0e-102-88-113-62.ngrok-free.app"
+    }
+  },
+  "before": {
+    "alice": {
+      "settled": 400,
+      "future": 400,
+      "spendable": 400,
+      "offchain_outbound": 490,
+      "offchain_inbound": 110
+    },
+    "bob": {
+      "settled": 0,
+      "future": 0,
+      "spendable": 0,
+      "offchain_outbound": 110,
+      "offchain_inbound": 490
+    }
+  },
+  "after": {
+    "alice": {
+      "settled": 400,
+      "future": 400,
+      "spendable": 400,
+      "offchain_outbound": 490,
+      "offchain_inbound": 110
+    },
+    "bob": {
+      "settled": 0,
+      "future": 0,
+      "spendable": 0,
+      "offchain_outbound": 110,
+      "offchain_inbound": 490
+    }
+  },
+  "reservation_journal_unchanged": true,
+  "approval_performed": false,
+  "payment_submissions": 0,
+  "result": "prepared_awaiting_human_approval",
+  "events": [
+    {
+      "id": 10,
+      "kind": "user",
+      "text": "Pay alice@3f0e-102-88-113-62.ngrok-free.app 5 R402USD."
+    },
+    {
+      "id": 11,
+      "kind": "progress",
+      "text": "Working with your wallet\u2026"
+    },
+    {
+      "id": 12,
+      "kind": "wallet",
+      "text": "RGB assets identified"
+    },
+    {
+      "id": 13,
+      "kind": "wallet",
+      "text": "Payment prepared. Review the exact details before approving."
+    }
+  ],
+  "implementation_change": "None: existing integration reused",
+  "live_wire_tool_trace_available": false
+}

@@ -26,21 +26,35 @@ use tokio::sync::Mutex as AsyncMutex;
 pub struct WebConfig {
     pub bind: std::net::SocketAddr,
     pub wallet_name: String,
+    pub recipient_address: Option<String>,
 }
 impl Default for WebConfig {
     fn default() -> Self {
         Self {
             bind: "127.0.0.1:3030".parse().unwrap(),
             wallet_name: "RGB Wallet".into(),
+            recipient_address: None,
         }
     }
 }
 impl WebConfig {
     pub fn from_env() -> Result<Self, &'static str> {
-        Self::parse(
+        let mut config = Self::parse(
             &std::env::var("WALLET_API_BIND").unwrap_or_else(|_| "127.0.0.1:3030".into()),
             std::env::var("WALLET_NAME").unwrap_or_else(|_| "RGB Wallet".into()),
-        )
+        )?;
+        if let Ok(address) = std::env::var("WALLET_RECIPIENT_ADDRESS") {
+            if address.is_empty()
+                || address.len() > 318
+                || !address.is_ascii()
+                || address.chars().any(|c| c.is_control() || c.is_whitespace())
+                || address.split('@').count() != 2
+            {
+                return Err("invalid WALLET_RECIPIENT_ADDRESS");
+            }
+            config.recipient_address = Some(address);
+        }
+        Ok(config)
     }
     pub fn parse(bind: &str, wallet_name: String) -> Result<Self, &'static str> {
         let bind: std::net::SocketAddr = bind.parse().map_err(|_| "invalid WALLET_API_BIND")?;
@@ -53,7 +67,11 @@ impl WebConfig {
         {
             return Err("invalid WALLET_NAME");
         }
-        Ok(Self { bind, wallet_name })
+        Ok(Self {
+            bind,
+            wallet_name,
+            recipient_address: None,
+        })
     }
     fn hosts(&self) -> [String; 2] {
         [
@@ -97,8 +115,11 @@ pub struct Event {
 pub struct Session {
     pub csrf: String,
     pub busy: bool,
+    #[serde(skip)]
+    pub direct_pending: bool,
     #[serde(serialize_with = "web_plan")]
     pub pending: Option<PlanView>,
+    pub btc_pending: Option<rgb402_payment::btc::BtcPlanView>,
     pub machine_pending: Option<rgb402_payment::commerce::MachinePlanView>,
     pub machine_result: Option<rgb402_payment::commerce::PurchaseView>,
     pub events: Vec<Event>,
@@ -141,7 +162,9 @@ impl<M: AgentModel + Sync + 'static> AppState<M> {
             session: Mutex::new(Session {
                 csrf,
                 busy: false,
+                direct_pending: false,
                 pending: None,
+                btc_pending: None,
                 machine_pending: None,
                 machine_result: None,
                 events: vec![],
@@ -158,6 +181,25 @@ impl<M: AgentModel + Sync + 'static> AppState<M> {
     }
     fn observe(&self, result: &ToolOutput) {
         let (kind, text) = match result {
+            ToolOutput::BtcPlan { plan } => match &plan.policy {
+                PolicyDecision::Deny { reason } => {
+                    ("error", format!("BTC payment denied: {reason}"))
+                }
+                _ => (
+                    "wallet",
+                    format!(
+                        "BTC payment prepared: {} sats to {}. Application approval required.",
+                        plan.amount_sats, plan.recipient.identifier
+                    ),
+                ),
+            },
+            ToolOutput::BtcPayment {
+                payment_hash,
+                status,
+            } => (
+                "payment",
+                format!("BTC payment {} · {}", status_name(status), payment_hash),
+            ),
             ToolOutput::Machine { purchase } => {
                 self.0.session.lock().expect("session lock").machine_result =
                     Some(purchase.as_ref().clone());
@@ -225,6 +267,7 @@ pub fn router<M: AgentModel + Sync + 'static>(state: AppState<M>) -> Router {
     Router::new()
         .route("/api/session", get(session::<M>))
         .route("/api/invoice", post(create_invoice::<M>))
+        .route("/api/send/prepare", post(prepare_direct::<M>))
         .route("/api/wallet", get(wallet::<M>))
         .route("/api/assets", get(assets::<M>))
         .route("/api/activity", get(activity::<M>))
@@ -315,7 +358,9 @@ async fn wallet<M: AgentModel + Sync + 'static>(State(state): State<AppState<M>>
             onchain: balance.onchain_spendable.to_string(),
         });
     }
-    Json(serde_json::json!({"holdings":holdings,"sats":null,"network":"regtest","wallet_name":state.0.config.wallet_name})).into_response()
+    Json(serde_json::json!({"holdings":holdings,"sats":null,"network":"regtest","wallet_name":state.0.config.wallet_name,"recipient_address":state.0.config.recipient_address,
+        "commerce_enabled":agent.commerce_enabled(),"btc_policy":agent.btc_policy(),"btc_outbound_sats":agent.btc_balance().await.map(|n|n.to_string()),
+        "policy":{"auto_approve_below":agent.policy_limits().auto_approve_below.to_string(),"max_single_payment":agent.policy_limits().max_single_payment.to_string(),"max_daily_spend":agent.policy_limits().max_daily_spend.to_string(),"max_carrier_msat":agent.policy_limits().max_carrier_msat.to_string()}})).into_response()
 }
 async fn assets<M: AgentModel + Sync + 'static>(State(state): State<AppState<M>>) -> Response {
     let Ok(agent) = state.0.agent.try_lock() else {
@@ -377,7 +422,7 @@ async fn create_invoice<M: AgentModel + Sync + 'static>(
     }
 }
 async fn activity<M: AgentModel + Sync + 'static>(State(state): State<AppState<M>>) -> Response {
-    let Ok(agent) = state.0.agent.try_lock() else {
+    let Ok(mut agent) = state.0.agent.try_lock() else {
         return error(StatusCode::CONFLICT, "Wallet is busy");
     };
     let mut entries = vec![];
@@ -399,14 +444,37 @@ async fn activity<M: AgentModel + Sync + 'static>(State(state): State<AppState<M
             status,
         });
     }
+    for (hash, amount, timestamp, status) in agent.btc_activity().await {
+        entries.push(Activity {
+            payment_hash: hash.to_string(),
+            asset_id: "BTC".into(),
+            amount: amount.to_string(),
+            timestamp,
+            kind: "btc_transfer",
+            resource: None,
+            auto_approved: Some(false),
+            direction: "sent",
+            status,
+        });
+    }
     // Preserve journal-backed outgoing entries, including uncertain status. Merge by hash.
     let history = match agent.node_payments().await {
         Ok(history) => history,
         Err(_) => return error(StatusCode::BAD_GATEWAY, "Node payment history unavailable"),
     };
     for payment in history {
-        let (Some(asset), Some(amount)) = (payment.asset_id, payment.asset_amount) else {
-            continue;
+        let (asset, amount, kind) = match (payment.asset_id, payment.asset_amount) {
+            (Some(asset), Some(amount)) => (asset.to_string(), amount, "rgb_transfer"),
+            (None, None)
+                if payment.inbound && payment.amt_msat.is_some_and(|n| n > 0 && n % 1000 == 0) =>
+            {
+                (
+                    "BTC".into(),
+                    payment.amt_msat.unwrap() / 1000,
+                    "btc_transfer",
+                )
+            }
+            _ => continue,
         };
         if entries
             .iter()
@@ -419,7 +487,7 @@ async fn activity<M: AgentModel + Sync + 'static>(State(state): State<AppState<M
             asset_id: asset.to_string(),
             amount: amount.to_string(),
             timestamp: payment.created_at,
-            kind: "rgb_transfer",
+            kind,
             resource: None,
             auto_approved: None,
             direction: if payment.inbound { "received" } else { "sent" },
@@ -485,7 +553,7 @@ async fn message<M: AgentModel + Sync + 'static>(
     }
     {
         let mut s = state.0.session.lock().expect("session lock");
-        if s.busy || s.pending.is_some() || s.machine_pending.is_some() {
+        if s.busy || s.pending.is_some() || s.machine_pending.is_some() || s.btc_pending.is_some() {
             return error(
                 StatusCode::CONFLICT,
                 "Finish the current payment review first",
@@ -494,7 +562,49 @@ async fn message<M: AgentModel + Sync + 'static>(
         s.busy = true;
     }
     state.event("user", input.message.clone());
-    launch(state, input.message, None);
+    launch(state, input.message, None, false);
+    StatusCode::ACCEPTED.into_response()
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct DirectInput {
+    invoice: String,
+}
+async fn prepare_direct<M: AgentModel + Sync + 'static>(
+    State(state): State<AppState<M>>,
+    body: Bytes,
+) -> Response {
+    let Ok(input) = serde_json::from_slice::<DirectInput>(&body) else {
+        return error(StatusCode::BAD_REQUEST, "Expected an invoice only");
+    };
+    if input.invoice.trim().is_empty() || input.invoice.len() > 16_384 {
+        return error(StatusCode::BAD_REQUEST, "Invalid invoice size");
+    }
+    {
+        let mut s = state.0.session.lock().expect("session lock");
+        if s.busy || s.pending.is_some() || s.machine_pending.is_some() || s.btc_pending.is_some() {
+            return error(StatusCode::CONFLICT, "Finish the current review first");
+        }
+        s.busy = true;
+    }
+    tokio::spawn(async move {
+        let mut agent = state.0.agent.lock().await;
+        match agent.prepare_from_application(input.invoice.trim()).await {
+            Ok(plan) => {
+                state.observe(&ToolOutput::Plan { plan: plan.clone() });
+                if !matches!(plan.policy, PolicyDecision::Deny { .. }) {
+                    let mut s = state.0.session.lock().expect("session lock");
+                    s.pending = Some(plan);
+                    s.direct_pending = true;
+                }
+            }
+            Err(_) => state.event(
+                "error",
+                "Invoice preparation failed. No payment was submitted.".into(),
+            ),
+        }
+        state.0.session.lock().expect("session lock").busy = false;
+    });
     StatusCode::ACCEPTED.into_response()
 }
 #[derive(Deserialize)]
@@ -526,7 +636,7 @@ async fn approval<M: AgentModel + Sync + 'static>(
             "Approval accepts plan identity only; payment details cannot be changed",
         );
     }
-    {
+    let direct = {
         let mut s = state.0.session.lock().expect("session lock");
         if s.busy {
             return error(StatusCode::CONFLICT, "Wallet action already in progress");
@@ -535,6 +645,7 @@ async fn approval<M: AgentModel + Sync + 'static>(
             .as_ref()
             .map(|p| p.plan_id.as_str())
             .or_else(|| s.machine_pending.as_ref().map(|p| p.plan_id.as_str()))
+            .or_else(|| s.btc_pending.as_ref().map(|p| p.plan_id.as_str()))
             != Some(id.as_str())
         {
             return error(
@@ -545,14 +656,19 @@ async fn approval<M: AgentModel + Sync + 'static>(
         s.busy = true;
         s.pending = None;
         s.machine_pending = None;
-    }
-    launch(state, String::new(), Some((id, yes)));
+        s.btc_pending = None;
+        let direct = s.direct_pending;
+        s.direct_pending = false;
+        direct
+    };
+    launch(state, String::new(), Some((id, yes)), direct);
     StatusCode::ACCEPTED.into_response()
 }
 fn launch<M: AgentModel + Sync + 'static>(
     state: AppState<M>,
     message: String,
     approval: Option<(String, bool)>,
+    direct: bool,
 ) {
     tokio::spawn(async move {
         let mut agent = state.0.agent.lock().await;
@@ -579,6 +695,17 @@ fn launch<M: AgentModel + Sync + 'static>(
                 return;
             }
         }
+        if direct {
+            match agent.execute_from_application().await {
+                Ok(output) => state.observe(&output),
+                Err(_) => state.event(
+                    "error",
+                    "Execution unavailable. Check activity before retrying.".into(),
+                ),
+            }
+            state.0.session.lock().expect("session lock").busy = false;
+            return;
+        }
         state.event("progress", "Working with your wallet…".into());
         let observer = state.clone();
         let outcome = agent
@@ -586,6 +713,9 @@ fn launch<M: AgentModel + Sync + 'static>(
             .await;
         match outcome {
             Ok(TurnOutcome::Reply(text)) => state.event("assistant", text),
+            Ok(TurnOutcome::BtcPrepared(plan)) => {
+                state.0.session.lock().expect("session lock").btc_pending = Some(plan);
+            }
             Ok(TurnOutcome::MachinePrepared(plan)) => {
                 state
                     .0
