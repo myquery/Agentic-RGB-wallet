@@ -1,0 +1,460 @@
+{
+  "timestamp": "2026-09-18T10:58:21.692113+00:00",
+  "schema": 1,
+  "economic_actions": false,
+  "wallets": {
+    "alice": {
+      "summary": {
+        "wallet_name": "Alice Wallet",
+        "network": "regtest",
+        "recipient_address": "alice@3f0e-102-88-113-62.ngrok-free.app",
+        "btc_outbound_sats": "10000",
+        "commerce_enabled": true,
+        "holdings": [
+          {
+            "asset": {
+              "asset_id": "rgb:KigwNgFx-bh7pHa~-Q7gi49D-ncmlxS5-~~44UbJ-g0Ienok",
+              "name": "RGB402 Demo Dollar",
+              "ticker": "R402USD",
+              "precision": 0
+            },
+            "outbound": "480",
+            "onchain": "400"
+          }
+        ],
+        "btc_policy": {
+          "max_payment_sats": "100",
+          "max_daily_sats": "500",
+          "human_approval_required": true
+        },
+        "policy": {
+          "auto_approve_below": "1",
+          "max_single_payment": "100",
+          "max_daily_spend": "500",
+          "max_carrier_msat": "3000000"
+        }
+      },
+      "activity": [
+        {
+          "kind": "btc_transfer",
+          "payment_hash": "11640377aa257e5c03ebcae838a6141bc1afbb24d41c578cccc2fd3b9f6180ae",
+          "asset_id": "BTC",
+          "amount": "5",
+          "timestamp": 1789726749,
+          "direction": "received",
+          "status": "settled"
+        },
+        {
+          "kind": "btc_transfer",
+          "payment_hash": "b5c980f8d91440ee5d84189d15857b378ccf8a0d206b9e12117958405e4ac578",
+          "asset_id": "BTC",
+          "amount": "3",
+          "timestamp": 1789717816,
+          "direction": "received",
+          "status": "failed"
+        },
+        {
+          "kind": "btc_transfer",
+          "payment_hash": "d6cae174500cd8cb8508e4e5515b1189b5107975c47365888006ccb54855a0a8",
+          "asset_id": "BTC",
+          "amount": "5000",
+          "timestamp": 1789712545,
+          "direction": "received",
+          "status": "failed"
+        },
+        {
+          "kind": "btc_transfer",
+          "payment_hash": "6bf97f189af7978a4270bd74685e293cfec60d9dda19236847d12648415387a4",
+          "asset_id": "BTC",
+          "amount": "5",
+          "timestamp": 1789712273,
+          "direction": "received",
+          "status": "failed"
+        },
+        {
+          "kind": "machine_purchase",
+          "payment_hash": "ed01e1dfed453ecf7cf784efddb2fa9bdd22e3f3e7cb4ebcf96395415a3d9eb2",
+          "asset_id": "BTC",
+          "amount": "3",
+          "timestamp": 1789683275,
+          "direction": "sent",
+          "status": "settled"
+        },
+        {
+          "kind": "rgb_transfer",
+          "payment_hash": "4e4b340f675b5a6d3a7ea5aa71a55d6b14104540cb6fb8a4cb39e4a72831c716",
+          "asset_id": "rgb:KigwNgFx-bh7pHa~-Q7gi49D-ncmlxS5-~~44UbJ-g0Ienok",
+          "amount": "5",
+          "timestamp": 1789666455,
+          "direction": "received",
+          "status": "settled"
+        },
+        {
+          "kind": "rgb_transfer",
+          "payment_hash": "843e47eb893c23331beedb6f69609d79423709d160ee2ee6dcd885459420d252",
+          "asset_id": "rgb:KigwNgFx-bh7pHa~-Q7gi49D-ncmlxS5-~~44UbJ-g0Ienok",
+          "amount": "5",
+          "timestamp": 1789664781,
+          "direction": "sent",
+          "status": "settled"
+        },
+        {
+          "kind": "rgb_transfer",
+          "payment_hash": "b40c6e4eb8afd481b80ce386bfe2dd7e6fa097f119e3f9c8261b228bbc0f05ae",
+          "asset_id": "rgb:KigwNgFx-bh7pHa~-Q7gi49D-ncmlxS5-~~44UbJ-g0Ienok",
+          "amount": "5",
+          "timestamp": 1789663016,
+          "direction": "sent",
+          "status": "settled"
+        },
+        {
+          "kind": "rgb_transfer",
+          "payment_hash": "93e3900dfed3fd80e6b704dfd6d707301bd5c2cad3427694ac321a916832ccba",
+          "asset_id": "rgb:KigwNgFx-bh7pHa~-Q7gi49D-ncmlxS5-~~44UbJ-g0Ienok",
+          "amount": "5",
+          "timestamp": 1789661284,
+          "direction": "sent",
+          "status": "settled"
+        },
+        {
+          "kind": "rgb_transfer",
+          "payment_hash": "8e59663ad5cb1096c184e208d23277cc5dd81fbf2fd9dd9af133f02e19bec299",
+          "asset_id": "rgb:KigwNgFx-bh7pHa~-Q7gi49D-ncmlxS5-~~44UbJ-g0Ienok",
+          "amount": "5",
+          "timestamp": 1789658187,
+          "direction": "sent",
+          "status": "settled"
+        },
+        {
+          "kind": "rgb_transfer",
+          "payment_hash": "8f14fd52544defc8113a409c39f5068b2eae6a7b5846c0302637ac38275b8562",
+          "asset_id": "rgb:KigwNgFx-bh7pHa~-Q7gi49D-ncmlxS5-~~44UbJ-g0Ienok",
+          "amount": "5",
+          "timestamp": 1789625152,
+          "direction": "sent",
+          "status": "settled"
+        }
+      ],
+      "node": {
+        "pubkey": "03a4e67defeccdf5c3875a3e47e1b345991a4620bc83983feb548a11a5e5823492"
+      },
+      "network": {
+        "network": "Regtest",
+        "height": 127
+      },
+      "channels": [
+        {
+          "channel_id": "77695594d0bcc7703f9597d531a818f0acd3549fc107e83a5adb56013060bf80",
+          "peer_pubkey": "029d8d919da34c023387db2955a082e7c7d91e9e87fdaf88905135149b838b7587",
+          "asset_id": "rgb:KigwNgFx-bh7pHa~-Q7gi49D-ncmlxS5-~~44UbJ-g0Ienok",
+          "ready": true,
+          "is_usable": true,
+          "capacity_sat": 100000,
+          "outbound_balance_msat": 76337000,
+          "inbound_balance_msat": 21003000,
+          "next_outbound_htlc_minimum_msat": 1,
+          "next_outbound_htlc_limit_msat": 10000000
+        },
+        {
+          "channel_id": "ed1c353a029254dab66447176797cd95db7db5fe3a2812b5f50a6f0141c4a625",
+          "peer_pubkey": "029d8d919da34c023387db2955a082e7c7d91e9e87fdaf88905135149b838b7587",
+          "asset_id": null,
+          "ready": true,
+          "is_usable": true,
+          "capacity_sat": 100000,
+          "outbound_balance_msat": 0,
+          "inbound_balance_msat": 98335000,
+          "next_outbound_htlc_minimum_msat": 3000000,
+          "next_outbound_htlc_limit_msat": 0
+        }
+      ]
+    },
+    "bob": {
+      "summary": {
+        "wallet_name": "Bob Wallet",
+        "network": "regtest",
+        "recipient_address": "bob@3f0e-102-88-113-62.ngrok-free.app",
+        "btc_outbound_sats": "10000",
+        "commerce_enabled": false,
+        "holdings": [
+          {
+            "asset": {
+              "asset_id": "rgb:KigwNgFx-bh7pHa~-Q7gi49D-ncmlxS5-~~44UbJ-g0Ienok",
+              "name": "RGB402 Demo Dollar",
+              "ticker": "R402USD",
+              "precision": 0
+            },
+            "outbound": "120",
+            "onchain": "0"
+          }
+        ],
+        "btc_policy": {
+          "max_payment_sats": "100",
+          "max_daily_sats": "500",
+          "human_approval_required": true
+        },
+        "policy": {
+          "auto_approve_below": "1",
+          "max_single_payment": "100",
+          "max_daily_spend": "500",
+          "max_carrier_msat": "3000000"
+        }
+      },
+      "activity": [
+        {
+          "kind": "btc_transfer",
+          "payment_hash": "11640377aa257e5c03ebcae838a6141bc1afbb24d41c578cccc2fd3b9f6180ae",
+          "asset_id": "BTC",
+          "amount": "5",
+          "timestamp": 1789726751,
+          "direction": "sent",
+          "status": "settled"
+        },
+        {
+          "kind": "btc_transfer",
+          "payment_hash": "6bf97f189af7978a4270bd74685e293cfec60d9dda19236847d12648415387a4",
+          "asset_id": "BTC",
+          "amount": "5",
+          "timestamp": 1789712277,
+          "direction": "sent",
+          "status": "failed"
+        },
+        {
+          "kind": "btc_transfer",
+          "payment_hash": "3c2a5ad81bceb63274b2c334c3bb39358d82b4e5c3cb24de6d618afb9baaa64e",
+          "asset_id": "BTC",
+          "amount": "50",
+          "timestamp": 1789683814,
+          "direction": "received",
+          "status": "failed"
+        },
+        {
+          "kind": "btc_transfer",
+          "payment_hash": "ed01e1dfed453ecf7cf784efddb2fa9bdd22e3f3e7cb4ebcf96395415a3d9eb2",
+          "asset_id": "BTC",
+          "amount": "3",
+          "timestamp": 1789683275,
+          "direction": "received",
+          "status": "settled"
+        },
+        {
+          "kind": "rgb_transfer",
+          "payment_hash": "4e4b340f675b5a6d3a7ea5aa71a55d6b14104540cb6fb8a4cb39e4a72831c716",
+          "asset_id": "rgb:KigwNgFx-bh7pHa~-Q7gi49D-ncmlxS5-~~44UbJ-g0Ienok",
+          "amount": "5",
+          "timestamp": 1789666462,
+          "direction": "sent",
+          "status": "settled"
+        },
+        {
+          "kind": "rgb_transfer",
+          "payment_hash": "843e47eb893c23331beedb6f69609d79423709d160ee2ee6dcd885459420d252",
+          "asset_id": "rgb:KigwNgFx-bh7pHa~-Q7gi49D-ncmlxS5-~~44UbJ-g0Ienok",
+          "amount": "5",
+          "timestamp": 1789664775,
+          "direction": "received",
+          "status": "settled"
+        },
+        {
+          "kind": "rgb_transfer",
+          "payment_hash": "b40c6e4eb8afd481b80ce386bfe2dd7e6fa097f119e3f9c8261b228bbc0f05ae",
+          "asset_id": "rgb:KigwNgFx-bh7pHa~-Q7gi49D-ncmlxS5-~~44UbJ-g0Ienok",
+          "amount": "5",
+          "timestamp": 1789662946,
+          "direction": "received",
+          "status": "settled"
+        },
+        {
+          "kind": "rgb_transfer",
+          "payment_hash": "93e3900dfed3fd80e6b704dfd6d707301bd5c2cad3427694ac321a916832ccba",
+          "asset_id": "rgb:KigwNgFx-bh7pHa~-Q7gi49D-ncmlxS5-~~44UbJ-g0Ienok",
+          "amount": "5",
+          "timestamp": 1789660654,
+          "direction": "received",
+          "status": "settled"
+        },
+        {
+          "kind": "rgb_transfer",
+          "payment_hash": "8e59663ad5cb1096c184e208d23277cc5dd81fbf2fd9dd9af133f02e19bec299",
+          "asset_id": "rgb:KigwNgFx-bh7pHa~-Q7gi49D-ncmlxS5-~~44UbJ-g0Ienok",
+          "amount": "5",
+          "timestamp": 1789658093,
+          "direction": "received",
+          "status": "settled"
+        },
+        {
+          "kind": "btc_transfer",
+          "payment_hash": "aa756281002be5814e6f30a7f2b07986081b616914484c26fbb78e73cb80dbc5",
+          "asset_id": "BTC",
+          "amount": "3000",
+          "timestamp": 1789646427,
+          "direction": "received",
+          "status": "failed"
+        },
+        {
+          "kind": "rgb_transfer",
+          "payment_hash": "8f14fd52544defc8113a409c39f5068b2eae6a7b5846c0302637ac38275b8562",
+          "asset_id": "rgb:KigwNgFx-bh7pHa~-Q7gi49D-ncmlxS5-~~44UbJ-g0Ienok",
+          "amount": "5",
+          "timestamp": 1789625125,
+          "direction": "received",
+          "status": "settled"
+        },
+        {
+          "kind": "btc_transfer",
+          "payment_hash": "503d20cd06c05d9994968d7af889d4165fc72901a84cf4ea90b9e84802a802f7",
+          "asset_id": "BTC",
+          "amount": "3000",
+          "timestamp": 1789624097,
+          "direction": "received",
+          "status": "failed"
+        }
+      ],
+      "node": {
+        "pubkey": "029d8d919da34c023387db2955a082e7c7d91e9e87fdaf88905135149b838b7587"
+      },
+      "network": {
+        "network": "Regtest",
+        "height": 127
+      },
+      "channels": [
+        {
+          "channel_id": "ed1c353a029254dab66447176797cd95db7db5fe3a2812b5f50a6f0141c4a625",
+          "peer_pubkey": "03a4e67defeccdf5c3875a3e47e1b345991a4620bc83983feb548a11a5e5823492",
+          "asset_id": null,
+          "ready": true,
+          "is_usable": true,
+          "capacity_sat": 100000,
+          "outbound_balance_msat": 98335000,
+          "inbound_balance_msat": 0,
+          "next_outbound_htlc_minimum_msat": 1,
+          "next_outbound_htlc_limit_msat": 10000000
+        },
+        {
+          "channel_id": "77695594d0bcc7703f9597d531a818f0acd3549fc107e83a5adb56013060bf80",
+          "peer_pubkey": "03a4e67defeccdf5c3875a3e47e1b345991a4620bc83983feb548a11a5e5823492",
+          "asset_id": "rgb:KigwNgFx-bh7pHa~-Q7gi49D-ncmlxS5-~~44UbJ-g0Ienok",
+          "ready": true,
+          "is_usable": true,
+          "capacity_sat": 100000,
+          "outbound_balance_msat": 21003000,
+          "inbound_balance_msat": 76337000,
+          "next_outbound_htlc_minimum_msat": 3000000,
+          "next_outbound_htlc_limit_msat": 10000000
+        }
+      ]
+    }
+  },
+  "checks": [
+    {
+      "check": "alice wallet identity",
+      "passed": true
+    },
+    {
+      "check": "alice regtest",
+      "passed": true
+    },
+    {
+      "check": "alice recipient identity",
+      "passed": true
+    },
+    {
+      "check": "alice BTC human approval",
+      "passed": true
+    },
+    {
+      "check": "bob wallet identity",
+      "passed": true
+    },
+    {
+      "check": "bob regtest",
+      "passed": true
+    },
+    {
+      "check": "bob recipient identity",
+      "passed": true
+    },
+    {
+      "check": "bob BTC human approval",
+      "passed": true
+    },
+    {
+      "check": "one shared R402USD asset",
+      "passed": true
+    },
+    {
+      "check": "Alice RGB outbound >= 5 units",
+      "passed": true
+    },
+    {
+      "check": "distinct node identities",
+      "passed": true
+    },
+    {
+      "check": "shared usable channel",
+      "passed": true
+    },
+    {
+      "check": "RGB channel supports 3000-sat carrier",
+      "passed": true
+    },
+    {
+      "check": "Alice BTC routes support 10 sats and 3 sats",
+      "passed": true
+    },
+    {
+      "check": "Bob small-payment return channel",
+      "passed": true
+    },
+    {
+      "check": "Bob inbound >= 3013 sats",
+      "passed": true
+    },
+    {
+      "check": "Alice outbound >= 3013 sats",
+      "passed": true
+    },
+    {
+      "check": "Alice commerce configured",
+      "passed": true
+    },
+    {
+      "check": "Alice BTC policy permits 10 sats",
+      "passed": true
+    },
+    {
+      "check": "merchant health",
+      "passed": true
+    },
+    {
+      "check": "alice WebFinger subject",
+      "passed": true
+    },
+    {
+      "check": "alice rgb discovery",
+      "passed": true
+    },
+    {
+      "check": "alice btc discovery",
+      "passed": true
+    },
+    {
+      "check": "bob WebFinger subject",
+      "passed": true
+    },
+    {
+      "check": "bob rgb discovery",
+      "passed": true
+    },
+    {
+      "check": "bob btc discovery",
+      "passed": true
+    }
+  ],
+  "passed": true,
+  "limitations": [
+    "No invoice, plan, approval or payment was created.",
+    "Reachability and liquidity do not prove settlement, provider access or remaining daily budget.",
+    "Existing L402 credentials may have expired; never erase reservations to repeat the demo."
+  ]
+}

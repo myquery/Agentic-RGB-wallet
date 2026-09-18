@@ -1,4 +1,10 @@
-# Agentic RGB Wallet
+# Luma Wallet
+
+For the feature freeze and final human-operated demo, start with the
+[final demo runbook](docs/final-demo-runbook.md),
+[manual acceptance](docs/final-manual-acceptance.md), and
+[hackathon deployment boundaries](docs/hackathon-deployment.md).
+Read-only readiness: `python3 scripts/demo/check.py`.
 
 RGB402 is a Bitshala BOSS Battle bootstrap project for machine-to-machine paid digital services.
 
