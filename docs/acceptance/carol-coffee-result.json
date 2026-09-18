@@ -1,0 +1,73 @@
+{
+  "timestamp": "2026-09-18T21:05:19.304972+00:00",
+  "payment_hash": "741dfc8db484370eb77f08236e93facdfafc09f5564f8925de999545ca2aa3ab",
+  "nodes": {
+    "alice": {
+      "payment_hash": "741dfc8db484370eb77f08236e93facdfafc09f5564f8925de999545ca2aa3ab",
+      "status": "Succeeded",
+      "asset_id": "rgb:KigwNgFx-bh7pHa~-Q7gi49D-ncmlxS5-~~44UbJ-g0Ienok",
+      "asset_amount": 5,
+      "amt_msat": 3000000,
+      "inbound": false
+    },
+    "carol": {
+      "payment_hash": "741dfc8db484370eb77f08236e93facdfafc09f5564f8925de999545ca2aa3ab",
+      "status": "Succeeded",
+      "asset_id": "rgb:KigwNgFx-bh7pHa~-Q7gi49D-ncmlxS5-~~44UbJ-g0Ienok",
+      "asset_amount": 5,
+      "amt_msat": 3000000,
+      "inbound": true
+    }
+  },
+  "order": {
+    "id": "ord_741dfc8db484370eb77f08236e93facdfafc09f5564f8925de999545ca2aa3ab",
+    "merchant_id": "carol@3f0e-102-88-113-62.ngrok-free.app",
+    "product": {
+      "id": "coffee",
+      "name": "Coffee",
+      "amount": "5",
+      "asset_id": "rgb:KigwNgFx-bh7pHa~-Q7gi49D-ncmlxS5-~~44UbJ-g0Ienok",
+      "available": true
+    },
+    "quantity": 1,
+    "status": "paid",
+    "payment_status": "Settled"
+  },
+  "events": [
+    {
+      "id": 1,
+      "kind": "user",
+      "text": "Buy one Coffee from carol@3f0e-102-88-113-62.ngrok-free.app. Prepare the merchant order for application review now; do not ask for conversational confirmation."
+    },
+    {
+      "id": 2,
+      "kind": "progress",
+      "text": "Working with your wallet\u2026"
+    },
+    {
+      "id": 3,
+      "kind": "wallet",
+      "text": "Payment prepared. Review the exact details before approving."
+    },
+    {
+      "id": 4,
+      "kind": "approval",
+      "text": "You approved this exact payment."
+    },
+    {
+      "id": 5,
+      "kind": "progress",
+      "text": "Working with your wallet\u2026"
+    },
+    {
+      "id": 6,
+      "kind": "payment",
+      "text": "Payment pending \u00b7 741dfc8db484370eb77f08236e93facdfafc09f5564f8925de999545ca2aa3ab"
+    },
+    {
+      "id": 7,
+      "kind": "assistant",
+      "text": "The payment for 1 Coffee from carol@3f0e-102-88-113-62.ngrok-free.app is submitted and currently pending. You may query the payment status to track progress."
+    }
+  ]
+}

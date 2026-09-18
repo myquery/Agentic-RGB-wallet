@@ -1,0 +1,62 @@
+{
+  "timestamp": "2026-09-18T20:37:54.694472+00:00",
+  "wallets": {
+    "alice": {
+      "wallet_name": "Alice Wallet",
+      "network": "regtest",
+      "holdings": [
+        {
+          "asset": {
+            "asset_id": "rgb:KigwNgFx-bh7pHa~-Q7gi49D-ncmlxS5-~~44UbJ-g0Ienok",
+            "name": "RGB402 Demo Dollar",
+            "ticker": "R402USD",
+            "precision": 0
+          },
+          "outbound": "540",
+          "onchain": "300"
+        }
+      ],
+      "btc_outbound_sats": "10000",
+      "recipient_address": "alice@3f0e-102-88-113-62.ngrok-free.app",
+      "merchant_enabled": false
+    },
+    "bob": {
+      "wallet_name": "Bob Wallet",
+      "network": "regtest",
+      "holdings": [
+        {
+          "asset": {
+            "asset_id": "rgb:KigwNgFx-bh7pHa~-Q7gi49D-ncmlxS5-~~44UbJ-g0Ienok",
+            "name": "RGB402 Demo Dollar",
+            "ticker": "R402USD",
+            "precision": 0
+          },
+          "outbound": "160",
+          "onchain": "0"
+        }
+      ],
+      "btc_outbound_sats": "10000",
+      "recipient_address": "bob@3f0e-102-88-113-62.ngrok-free.app",
+      "merchant_enabled": false
+    },
+    "carol": {
+      "wallet_name": "Carol Wallet",
+      "network": "regtest",
+      "holdings": [
+        {
+          "asset": {
+            "asset_id": "rgb:KigwNgFx-bh7pHa~-Q7gi49D-ncmlxS5-~~44UbJ-g0Ienok",
+            "name": "RGB402 Demo Dollar",
+            "ticker": "R402USD",
+            "precision": 0
+          },
+          "outbound": "0",
+          "onchain": "0"
+        }
+      ],
+      "btc_outbound_sats": "9000",
+      "recipient_address": "carol@3f0e-102-88-113-62.ngrok-free.app",
+      "merchant_enabled": true
+    }
+  }
+}

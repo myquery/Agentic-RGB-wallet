@@ -1,0 +1,40 @@
+{
+  "timestamp": "2026-09-18T20:55:14.422759+00:00",
+  "events": [
+    {
+      "id": 1,
+      "kind": "user",
+      "text": "Buy one Coffee from carol@3f0e-102-88-113-62.ngrok-free.app. Prepare the merchant order for application review now; do not ask for conversational confirmation."
+    },
+    {
+      "id": 2,
+      "kind": "progress",
+      "text": "Working with your wallet\u2026"
+    },
+    {
+      "id": 3,
+      "kind": "wallet",
+      "text": "Payment prepared. Review the exact details before approving."
+    }
+  ],
+  "plan": {
+    "merchant_order": "carol@3f0e-102-88-113-62.ngrok-free.app \u00b7 Coffee \u00d7 1 \u00b7 ord_741dfc8db484370eb77f08236e93facdfafc09f5564f8925de999545ca2aa3ab",
+    "plan_id": "741dfc8db484370eb77f08236e93facdfafc09f5564f8925de999545ca2aa3ab-1",
+    "request": {
+      "asset_id": "rgb:KigwNgFx-bh7pHa~-Q7gi49D-ncmlxS5-~~44UbJ-g0Ienok",
+      "amount": "5",
+      "invoice": "lnbcrt30u1p42mfghdqqnp4qtasehlanh8srrj8vx03x3x9qawutewp2p495rkzefa76s87wg5q7pp5wswlerd5ssmsadmlpq3kayl6eha0cz042e8cjfw7nx25tj325w4ssp5pyvaqcjqkhpvadej9p967shrcyqnsha2c3pv8d6cd77mcqmah32s9qyysgqcqzp2xqrrsslp59g5rqdspw9hpa6ga4lgwuz9c7suaexju2tnll78pgmycxss7n6ys7qp9rzjqwjwvl00anxltsu8tgly0cdngkv3533qhjpes0lt2j9prf09sg6fyqqqqyqqzrgqqqqqqqlgqqqqqqqqfq7qhnqwn5x6rnrlet08hrgg3mg95eyyv3zg69g3hs0qr263zhr2pr4qzs0gk2kjckzxknlzr8f4zcndk7qnsknmp9lg9ghj5qu4t5urcpnc7sfr",
+      "payment_hash": "741dfc8db484370eb77f08236e93facdfafc09f5564f8925de999545ca2aa3ab",
+      "expires_at": 1789768487,
+      "network": "Regtest",
+      "carrier_msat": "3000000"
+    },
+    "available_balance": "540",
+    "policy": {
+      "decision": "require_approval",
+      "reason": "amount meets or exceeds auto approval threshold"
+    },
+    "application_confirmation_required": true
+  },
+  "payment_submitted": false
+}

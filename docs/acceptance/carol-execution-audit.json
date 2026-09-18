@@ -1,0 +1,55 @@
+{
+  "timestamp": "2026-09-18T21:08:44.278460+00:00",
+  "payments": {
+    "alice": {
+      "payment_hash": "741dfc8db484370eb77f08236e93facdfafc09f5564f8925de999545ca2aa3ab",
+      "reservation_count": 1,
+      "reservations": [
+        {
+          "at": 1789765163,
+          "authority": {
+            "economic_action_id": "3af1010f20e3d62a000c9a918517144cfe459810bec133b09bb36dd284e3207d",
+            "source": "human"
+          }
+        }
+      ],
+      "submission_events": [
+        "2026-09-18T20:59:27.428529Z  INFO rgb402_payment::wallet: event=\"payment_submitted\" plan_id=741dfc8db484370eb77f08236e93facdfafc09f5564f8925de999545ca2aa3ab-1 payment_hash=741dfc8db484370eb77f08236e93facdfafc09f5564f8925de999545ca2aa3ab"
+      ],
+      "tool_events": [
+        "2026-09-18T20:33:09.125579Z  INFO rgb402_agent::wallet_agent: event=\"agent_tool_requested\" tool=merchant_catalog",
+        "2026-09-18T20:37:56.522077Z  INFO rgb402_agent::wallet_agent: event=\"agent_tool_requested\" tool=merchant_catalog",
+        "2026-09-18T20:39:14.105910Z  INFO rgb402_agent::wallet_agent: event=\"agent_tool_requested\" tool=merchant_create_order",
+        "2026-09-18T20:50:05.427748Z  INFO rgb402_agent::wallet_agent: event=\"agent_tool_requested\" tool=merchant_create_order",
+        "2026-09-18T20:54:37.536161Z  INFO rgb402_agent::wallet_agent: event=\"agent_tool_requested\" tool=merchant_create_order",
+        "2026-09-18T20:59:23.576351Z  INFO rgb402_agent::wallet_agent: event=\"agent_tool_requested\" tool=wallet_execute_payment",
+        "2026-09-18T21:05:26.034629Z  INFO rgb402_agent::wallet_agent: event=\"agent_tool_requested\" tool=merchant_order_status"
+      ]
+    },
+    "bob": {
+      "payment_hash": "e69d17632ef535be7780e5a71de48f8b5e551f828319830d08452c2cbabafd51",
+      "reservation_count": 1,
+      "reservations": [
+        {
+          "at": 1789765375,
+          "authority": {
+            "economic_action_id": "b259c7305b0d2b60f4c0417400b1ae602a902f89b9bc3fde31bb052d6b3b0d0f",
+            "source": "human"
+          }
+        }
+      ],
+      "submission_events": [
+        "2026-09-18T21:02:59.001235Z  INFO rgb402_payment::wallet: event=\"payment_submitted\" plan_id=e69d17632ef535be7780e5a71de48f8b5e551f828319830d08452c2cbabafd51-1 payment_hash=e69d17632ef535be7780e5a71de48f8b5e551f828319830d08452c2cbabafd51"
+      ],
+      "tool_events": [
+        "2026-09-18T20:50:05.471289Z  INFO rgb402_agent::wallet_agent: event=\"agent_tool_requested\" tool=merchant_catalog",
+        "2026-09-18T20:55:16.765322Z  INFO rgb402_agent::wallet_agent: event=\"agent_tool_requested\" tool=merchant_create_order",
+        "2026-09-18T21:00:03.748796Z  INFO rgb402_agent::wallet_agent: event=\"agent_tool_requested\" tool=merchant_create_order",
+        "2026-09-18T21:02:14.311995Z  INFO rgb402_agent::wallet_agent: event=\"agent_tool_requested\" tool=merchant_catalog",
+        "2026-09-18T21:02:20.149908Z  INFO rgb402_agent::wallet_agent: event=\"agent_tool_requested\" tool=merchant_create_order",
+        "2026-09-18T21:02:55.425661Z  INFO rgb402_agent::wallet_agent: event=\"agent_tool_requested\" tool=wallet_execute_payment",
+        "2026-09-18T21:05:26.413636Z  INFO rgb402_agent::wallet_agent: event=\"agent_tool_requested\" tool=merchant_order_status"
+      ]
+    }
+  }
+}

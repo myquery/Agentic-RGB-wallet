@@ -39,12 +39,71 @@ async fn start() -> Result<(), Box<dyn std::error::Error>> {
     let mut agent = WalletAgent::new(model, wallet).with_btc(btc);
     if let Some(config) = rgb402_payment::commerce::CommerceConfig::from_env()? {
         agent = agent.with_commerce(rgb402_payment::commerce::CommerceService::open(
-            node, config,
+            node.clone(),
+            config,
         )?);
     }
     let web_config = WebConfig::from_env()?;
     let bind = web_config.bind;
-    let state = AppState::with_config(agent, web_config)?;
+    let merchant = if let Ok(bind) = std::env::var("MERCHANT_BIND") {
+        use rgb402_core::merchant::MerchantProfile;
+        use rgb402_payment::rgb::RgbNode;
+        let bind: std::net::SocketAddr = bind.parse()?;
+        if bind.ip() != std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST) || bind.port() == 0 {
+            return Err("merchant listener must bind to IPv4 loopback".into());
+        }
+        let identity = web_config
+            .recipient_address
+            .clone()
+            .ok_or("merchant requires recipient identity")?;
+        let (account, domain) = identity
+            .split_once('@')
+            .ok_or("invalid merchant identity")?;
+        if !["alice", "bob", "carol"].contains(&account) {
+            return Err("unsupported demo merchant identity".into());
+        }
+        let asset = node
+            .list_assets()
+            .await?
+            .first()
+            .ok_or("merchant requires a wallet RGB asset")?
+            .asset_id
+            .clone();
+        let base = if account == "carol" {
+            format!("https://{domain}/commerce/v1")
+        } else {
+            format!("https://{domain}/commerce/v1/wallets/{account}")
+        };
+        let profile = MerchantProfile {
+            enabled: web_config.merchant_enabled,
+            public_catalog: web_config.merchant_enabled,
+            merchant_id: identity.clone(),
+            display_name: format!("{}'s Store", account[..1].to_uppercase() + &account[1..]),
+            accepted_assets: vec![asset.clone()],
+            catalog: format!("{base}/catalog"),
+            orders: format!("{base}/orders"),
+        };
+        let path = std::env::var("MERCHANT_STATE_PATH")
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|_| config.state_path.with_extension("merchant-orders.jsonl"));
+        let store = rgb402_merchant::store::Store::open(profile, asset, node, path)?;
+        let shared = Arc::new(tokio::sync::Mutex::new(store));
+        let listener = tokio::net::TcpListener::bind(bind).await?;
+        Some((shared, listener))
+    } else {
+        None
+    };
+    let mut state = AppState::with_config(agent, web_config)?;
+    if let Some((store, listener)) = merchant {
+        state = state.with_merchant(store.clone());
+        tokio::spawn(async move {
+            if let Err(error) =
+                axum::serve(listener, rgb402_merchant::store::public_router(store)).await
+            {
+                eprintln!("Merchant listener stopped: {error}");
+            }
+        });
+    }
     let app = router(state);
     let listener = tokio::net::TcpListener::bind(bind).await?;
     eprintln!("Wallet PWA/API: http://{bind} (local session only)");

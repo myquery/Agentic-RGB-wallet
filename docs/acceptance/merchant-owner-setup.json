@@ -1,0 +1,38 @@
+{
+  "timestamp": "2026-09-18T21:29:36.242317+00:00",
+  "kind": "non-economic merchant setup verification",
+  "wallets": {
+    "alice": {
+      "merchant_available": true,
+      "enabled": false,
+      "identity": "alice@3f0e-102-88-113-62.ngrok-free.app",
+      "product_count": 0,
+      "paid_orders": 0,
+      "public_catalog_http_status": 404,
+      "public_owner_endpoint_http_status": 404,
+      "commerce_links": []
+    },
+    "bob": {
+      "merchant_available": true,
+      "enabled": false,
+      "identity": "bob@3f0e-102-88-113-62.ngrok-free.app",
+      "product_count": 0,
+      "paid_orders": 0,
+      "public_catalog_http_status": 404,
+      "public_owner_endpoint_http_status": 404,
+      "commerce_links": []
+    },
+    "carol": {
+      "merchant_available": true,
+      "enabled": true,
+      "identity": "carol@3f0e-102-88-113-62.ngrok-free.app",
+      "product_count": 2,
+      "paid_orders": 3,
+      "public_catalog_http_status": 200,
+      "public_owner_endpoint_http_status": 404,
+      "commerce_links": [
+        "https://3f0e-102-88-113-62.ngrok-free.app/commerce/v1/merchant"
+      ]
+    }
+  }
+}

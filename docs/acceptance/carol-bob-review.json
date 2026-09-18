@@ -1,0 +1,28 @@
+{
+  "timestamp": "2026-09-18T20:50:37.184688+00:00",
+  "role": "bob",
+  "events": [
+    {
+      "id": 1,
+      "kind": "user",
+      "text": "Buy one Sandwich from Carol. Prepare the order now and show the application approval prompt; this request is not payment approval."
+    },
+    {
+      "id": 2,
+      "kind": "progress",
+      "text": "Working with your wallet\u2026"
+    },
+    {
+      "id": 3,
+      "kind": "error",
+      "text": "Wallet validation rejected the payment"
+    },
+    {
+      "id": 4,
+      "kind": "assistant",
+      "text": "I attempted to fetch Carol's catalog for the merchant purchase, but the wallet validation rejected the payment request. This could be due to a configuration or validation issue. Please verify the wallet's merchant setup or try again later. Let me know if you want me to retry or assist further."
+    }
+  ],
+  "plan": null,
+  "payment_submitted": false
+}

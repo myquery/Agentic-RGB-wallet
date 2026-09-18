@@ -1,0 +1,148 @@
+{
+  "timestamp": "2026-09-18T21:04:38.015865+00:00",
+  "payment_hash": "e69d17632ef535be7780e5a71de48f8b5e551f828319830d08452c2cbabafd51",
+  "nodes": {
+    "bob": {
+      "payment_hash": "e69d17632ef535be7780e5a71de48f8b5e551f828319830d08452c2cbabafd51",
+      "status": "Succeeded",
+      "asset_id": "rgb:KigwNgFx-bh7pHa~-Q7gi49D-ncmlxS5-~~44UbJ-g0Ienok",
+      "asset_amount": 8,
+      "amt_msat": 3000000,
+      "inbound": false
+    },
+    "carol": {
+      "payment_hash": "e69d17632ef535be7780e5a71de48f8b5e551f828319830d08452c2cbabafd51",
+      "status": "Succeeded",
+      "asset_id": "rgb:KigwNgFx-bh7pHa~-Q7gi49D-ncmlxS5-~~44UbJ-g0Ienok",
+      "asset_amount": 8,
+      "amt_msat": 3000000,
+      "inbound": true
+    }
+  },
+  "wallets": {
+    "alice": {
+      "wallet_name": "Alice Wallet",
+      "holdings": [
+        {
+          "asset": {
+            "asset_id": "rgb:KigwNgFx-bh7pHa~-Q7gi49D-ncmlxS5-~~44UbJ-g0Ienok",
+            "name": "RGB402 Demo Dollar",
+            "ticker": "R402USD",
+            "precision": 0
+          },
+          "outbound": "535",
+          "onchain": "300"
+        }
+      ],
+      "network": "regtest"
+    },
+    "bob": {
+      "wallet_name": "Bob Wallet",
+      "holdings": [
+        {
+          "asset": {
+            "asset_id": "rgb:KigwNgFx-bh7pHa~-Q7gi49D-ncmlxS5-~~44UbJ-g0Ienok",
+            "name": "RGB402 Demo Dollar",
+            "ticker": "R402USD",
+            "precision": 0
+          },
+          "outbound": "152",
+          "onchain": "0"
+        }
+      ],
+      "network": "regtest"
+    },
+    "carol": {
+      "wallet_name": "Carol Wallet",
+      "holdings": [
+        {
+          "asset": {
+            "asset_id": "rgb:KigwNgFx-bh7pHa~-Q7gi49D-ncmlxS5-~~44UbJ-g0Ienok",
+            "name": "RGB402 Demo Dollar",
+            "ticker": "R402USD",
+            "precision": 0
+          },
+          "outbound": "13",
+          "onchain": "0"
+        }
+      ],
+      "network": "regtest"
+    }
+  },
+  "order": {
+    "id": "ord_e69d17632ef535be7780e5a71de48f8b5e551f828319830d08452c2cbabafd51",
+    "merchant_id": "carol@3f0e-102-88-113-62.ngrok-free.app",
+    "product": {
+      "id": "sandwich",
+      "name": "Sandwich",
+      "amount": "8",
+      "asset_id": "rgb:KigwNgFx-bh7pHa~-Q7gi49D-ncmlxS5-~~44UbJ-g0Ienok",
+      "available": true
+    },
+    "quantity": 1,
+    "status": "paid",
+    "payment_status": "Settled"
+  },
+  "events": [
+    {
+      "id": 1,
+      "kind": "user",
+      "text": "Buy one Sandwich from carol@3f0e-102-88-113-62.ngrok-free.app. Prepare the merchant order for application review now; do not ask for conversational confirmation."
+    },
+    {
+      "id": 2,
+      "kind": "progress",
+      "text": "Working with your wallet\u2026"
+    },
+    {
+      "id": 3,
+      "kind": "error",
+      "text": "Wallet validation rejected the payment"
+    },
+    {
+      "id": 4,
+      "kind": "assistant",
+      "text": "The attempt to create the merchant order for one Sandwich from carol@3f0e-102-88-113-62.ngrok-free.app was rejected by the wallet during validation due to an invalid payment error. This indicates there is an issue with the payment details or policy that the wallet requires. Please verify the merchant and order details or try again later."
+    },
+    {
+      "id": 5,
+      "kind": "user",
+      "text": "Read Carol\u2019s catalog first, then prepare one Sandwich using its exact catalog product ID sandwich and quantity 1. Show application approval; do not pay yet."
+    },
+    {
+      "id": 6,
+      "kind": "progress",
+      "text": "Working with your wallet\u2026"
+    },
+    {
+      "id": 7,
+      "kind": "wallet",
+      "text": "Coffee \u2014 5 base units\nSandwich \u2014 8 base units"
+    },
+    {
+      "id": 8,
+      "kind": "wallet",
+      "text": "Payment prepared. Review the exact details before approving."
+    },
+    {
+      "id": 9,
+      "kind": "approval",
+      "text": "You approved this exact payment."
+    },
+    {
+      "id": 10,
+      "kind": "progress",
+      "text": "Working with your wallet\u2026"
+    },
+    {
+      "id": 11,
+      "kind": "payment",
+      "text": "Payment pending \u00b7 e69d17632ef535be7780e5a71de48f8b5e551f828319830d08452c2cbabafd51"
+    },
+    {
+      "id": 12,
+      "kind": "assistant",
+      "text": "The payment plan for one Sandwich from Carol's Store has been executed and submitted. The payment status is currently pending. You can query the payment status to get updates on the settlement."
+    }
+  ]
+}

@@ -1,5 +1,8 @@
 # Luma Wallet
 
+Carol's optional store capability: [merchant commerce architecture and setup](docs/merchant-commerce.md)
+and [live acceptance progress](docs/acceptance/carol-commerce.md).
+
 For the feature freeze and final human-operated demo, start with the
 [final demo runbook](docs/final-demo-runbook.md),
 [manual acceptance](docs/final-manual-acceptance.md), and

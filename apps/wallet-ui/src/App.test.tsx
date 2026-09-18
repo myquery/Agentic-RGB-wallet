@@ -92,3 +92,16 @@ it('makes a failed BTC payment terminal in activity without offering a retry',()
  expect(screen.getByText('Failed at the node. This payment will not retry automatically.')).toBeInTheDocument();
  expect(screen.queryByRole('button',{name:/retry/i})).not.toBeInTheDocument();
 });
+
+ it('sends chat on Enter but preserves Shift+Enter and composition',async()=>{
+ const fetch=backend();render(<App/>);
+ await waitFor(()=>expect(screen.getByTestId('primary-balance')).toHaveTextContent('490'));
+ fireEvent.click(screen.getByRole('button',{name:'Agent'}));
+ const input=screen.getByLabelText('Message your wallet');
+ fireEvent.change(input,{target:{value:'Show my balance'}});
+ fireEvent.keyDown(input,{key:'Enter',shiftKey:true});
+ fireEvent.keyDown(input,{key:'Enter',isComposing:true});
+ expect(fetch.mock.calls.filter(([,options])=>options?.method==='POST')).toHaveLength(0);
+ fireEvent.keyDown(input,{key:'Enter'});
+ await waitFor(()=>expect(fetch).toHaveBeenCalledWith('/api/agent/message',expect.objectContaining({method:'POST',body:JSON.stringify({message:'Show my balance'})})));
+ });
