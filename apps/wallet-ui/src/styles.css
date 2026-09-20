@@ -82,3 +82,15 @@
 .receive-sheet textarea[readonly] { background: #f0f4e9; border-style: dashed; }
 .receive-sheet form > p { font-size: 12px; line-height: 1.6; color: #75836b; }
 .receive-sheet form .button { margin-top: 2px; }
+
+/* Brand artwork stays compact in the wallet chrome and becomes a calm, ambient
+   visual on the desktop companion rail. */
+.brand { gap: 8px; }
+.brand-logo { width: 72px; height: 52px; object-fit: contain; border-radius: 10px; }
+.brand-wordmark { font-size: 23px; letter-spacing: -1.3px; }
+.rail-art { height: 190px; margin: 38px 0; overflow: hidden; border: 1px solid #d8e4d4; border-radius: 28px; background: #e7eee1; box-shadow: 0 18px 38px -28px #18392d88; }
+.rail-art img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
+.brand-roadmap { margin-left: 5px; display: inline-flex; align-items: center; gap: 4px; color: #66765e; font-size: 10px; font-weight: 700; letter-spacing: .04em; text-decoration: none; }
+.brand-roadmap:hover { color: #274739; text-decoration: underline; }
+
+.conversation-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 14px}.new-conversation{padding:9px 11px;border-radius:10px;background:#e7eee1;color:#315440;font-size:11px;font-weight:700}.conversation-toolbar details{position:relative}.conversation-toolbar summary{list-style:none;cursor:pointer;padding:9px 2px;color:#66765e;font-size:11px;font-weight:700}.conversation-toolbar summary::-webkit-details-marker{display:none}.conversation-history{position:absolute;right:0;top:34px;z-index:7;width:min(310px,calc(100vw - 56px));max-height:270px;overflow:auto;padding:7px;background:#fffefa;border:1px solid #dce5d6;border-radius:13px;box-shadow:0 12px 30px #18392d22}.conversation-history button{width:100%;display:flex;flex-direction:column;align-items:stretch;gap:4px;padding:10px;border-radius:9px;text-align:left}.conversation-history button.selected{background:#edf3e6}.conversation-history strong{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.conversation-history small{font-size:9px}.archive-note{display:flex;gap:8px;align-items:flex-start;padding:11px 13px;margin:0 0 14px;border:1px solid #eadfca;border-radius:12px;background:#fffaf0;color:#765f3e;font-size:12px;line-height:1.45}.archive-note svg{flex:none;margin-top:1px}

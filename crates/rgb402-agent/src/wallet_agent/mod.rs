@@ -461,6 +461,17 @@ impl<M: AgentModel> WalletAgent<M> {
     pub fn conversation(&self) -> &[Message] {
         &self.conversation
     }
+    /// Starts a fresh model context. Economic state deliberately remains in the
+    /// wallet services, and this is refused while an authorization is active.
+    pub fn start_new_conversation(&mut self) -> Result<(), WalletError> {
+        if self.btc_pending.is_some() || self.pending.is_some() || self.machine_pending.is_some() {
+            return Err(WalletError::ApprovalRequired);
+        }
+        self.conversation.clear();
+        self.trace.clear();
+        self.btc_intent = false;
+        Ok(())
+    }
     /// Trusted application boundary; never included in tool definitions or dispatch.
     /// Only the exact plan returned by Prepared can be confirmed.
     pub fn confirm_from_human(

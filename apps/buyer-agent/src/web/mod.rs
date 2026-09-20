@@ -311,6 +311,7 @@ pub fn router<M: AgentModel + Sync + 'static>(state: AppState<M>) -> Router {
         .route("/api/activity", get(activity::<M>))
         .route("/api/payments/:id", get(payment::<M>))
         .route("/api/agent/message", post(message::<M>))
+        .route("/api/agent/conversation", post(new_conversation::<M>))
         .route("/api/approvals/:id/approve", post(approve::<M>))
         .route("/api/approvals/:id/reject", post(reject::<M>))
         .fallback(static_file)
@@ -628,6 +629,37 @@ async fn message<M: AgentModel + Sync + 'static>(
     state.event("user", input.message.clone());
     launch(state, input.message, None, false);
     StatusCode::ACCEPTED.into_response()
+}
+async fn new_conversation<M: AgentModel + Sync + 'static>(
+    State(state): State<AppState<M>>,
+) -> Response {
+    {
+        let session = state.0.session.lock().expect("session lock");
+        if session.busy
+            || session.pending.is_some()
+            || session.machine_pending.is_some()
+            || session.btc_pending.is_some()
+        {
+            return error(
+                StatusCode::CONFLICT,
+                "Finish the current payment review first",
+            );
+        }
+    }
+    let Ok(mut agent) = state.0.agent.try_lock() else {
+        return error(StatusCode::CONFLICT, "Wallet is busy; try again shortly");
+    };
+    if agent.start_new_conversation().is_err() {
+        return error(
+            StatusCode::CONFLICT,
+            "Finish the current payment review first",
+        );
+    }
+    let mut session = state.0.session.lock().expect("session lock");
+    session.events.clear();
+    session.machine_result = None;
+    session.direct_pending = false;
+    Json(session.clone()).into_response()
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
