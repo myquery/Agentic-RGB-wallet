@@ -21,3 +21,5 @@ __pycache__/
 
 .machine-state*
 .merchant-key
+/docs
+docs/
