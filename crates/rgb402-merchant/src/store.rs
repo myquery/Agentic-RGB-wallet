@@ -5,6 +5,7 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
+use fs2::FileExt;
 use rgb402_core::{merchant::*, AssetId, PaymentStatus};
 use rgb402_payment::rgb::{CreateInvoice, RgbNode};
 use std::{
@@ -29,13 +30,9 @@ pub struct Store {
     node: Arc<dyn RgbNode>,
     orders: BTreeMap<String, Order>,
     journal: File,
-    lock: PathBuf,
+    // Held for the store lifetime; the kernel releases it after a crash or reboot.
+    _lock: File,
     settings_path: PathBuf,
-}
-impl Drop for Store {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_file(&self.lock);
-    }
 }
 impl Store {
     pub fn open(
@@ -46,10 +43,13 @@ impl Store {
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let settings_path = path.with_extension("settings.json");
         let lock = path.with_extension("lock");
-        let _guard = OpenOptions::new()
+        let guard = OpenOptions::new()
+            .read(true)
             .write(true)
-            .create_new(true)
+            .create(true)
+            .truncate(false)
             .open(&lock)?;
+        guard.try_lock_exclusive()?;
         let result = (|| {
             let mut options = OpenOptions::new();
             options.create(true).append(true).read(true);
@@ -83,7 +83,7 @@ impl Store {
                 node,
                 orders,
                 journal,
-                lock: lock.clone(),
+                _lock: guard,
                 settings_path,
             };
             if store.settings_path.exists() {
@@ -94,9 +94,6 @@ impl Store {
             }
             Ok(store)
         })();
-        if result.is_err() {
-            let _ = std::fs::remove_file(lock);
-        }
         result
     }
     pub fn enabled(&self) -> bool {

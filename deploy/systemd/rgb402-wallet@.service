@@ -1,0 +1,16 @@
+[Unit]
+Description=RGB402 %i wallet API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/apps/bitshala/BOSS-hackathon
+ExecStart=%h/apps/bitshala/BOSS-hackathon/scripts/wallet/api.sh %i
+Restart=on-failure
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+[Install]
+WantedBy=default.target

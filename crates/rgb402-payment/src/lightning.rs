@@ -213,6 +213,7 @@ impl RgbLightningClient {
         #[derive(Deserialize)]
         struct Channel {
             is_usable: bool,
+            outbound_balance_msat: u64,
             next_outbound_htlc_limit_msat: u64,
             next_outbound_htlc_minimum_msat: Option<u64>,
         }
@@ -233,17 +234,33 @@ impl RgbLightningClient {
             .json()
             .await
             .map_err(|_| WalletError::Node("invalid channel balance"))?;
+        // The wallet balance is the sum of usable local channel balances. The
+        // next-HTLC limit is a routing constraint and can be lower than that
+        // balance. A payment still has to fit one eligible channel in this
+        // direct-channel demo, so preparation asks for the largest eligible
+        // routing limit below.
+        if amount_sats.is_none() {
+            return d
+                .channels
+                .iter()
+                .filter(|c| c.is_usable)
+                .map(|c| c.outbound_balance_msat / 1000)
+                .try_fold(0u64, |total, sats| {
+                    total
+                        .checked_add(sats)
+                        .ok_or(WalletError::Node("channel balance overflow"))
+                });
+        }
+        let amount = amount_sats.expect("checked above");
         // A single payment must fit a usable channel; conservative for this direct-channel demo.
         Ok(d.channels
             .iter()
             .filter(|c| {
                 c.is_usable
-                    && amount_sats.map_or(true, |amount| {
-                        amount.checked_mul(1000).is_some_and(|msat| {
-                            c.next_outbound_htlc_minimum_msat
-                                .is_some_and(|minimum| msat >= minimum)
-                                && msat <= c.next_outbound_htlc_limit_msat
-                        })
+                    && amount.checked_mul(1000).is_some_and(|msat| {
+                        c.next_outbound_htlc_minimum_msat
+                            .is_some_and(|minimum| msat >= minimum)
+                            && msat <= c.next_outbound_htlc_limit_msat
                     })
             })
             .map(|c| c.next_outbound_htlc_limit_msat / 1000)
@@ -293,14 +310,14 @@ mod tests {
                 _ => unreachable!(),
             })
         }
-        let app=Router::new().route("/lninvoice",post(handler)).route("/decodelninvoice",post(handler)).route("/sendpayment",post(handler)).route("/getpayment",post(handler)).route("/listchannels",get(||async{Json(serde_json::json!({"channels":[{"is_usable":true,"next_outbound_htlc_limit_msat":1000000,"next_outbound_htlc_minimum_msat":3000}]}))})).with_state(seen.clone());
+        let app=Router::new().route("/lninvoice",post(handler)).route("/decodelninvoice",post(handler)).route("/sendpayment",post(handler)).route("/getpayment",post(handler)).route("/listchannels",get(||async{Json(serde_json::json!({"channels":[{"is_usable":true,"outbound_balance_msat":900000,"next_outbound_htlc_limit_msat":1000000,"next_outbound_htlc_minimum_msat":3000},{"is_usable":true,"outbound_balance_msat":375000,"next_outbound_htlc_limit_msat":400000,"next_outbound_htlc_minimum_msat":3000},{"is_usable":false,"outbound_balance_msat":900000,"next_outbound_htlc_limit_msat":900000,"next_outbound_htlc_minimum_msat":3000}]}))})).with_state(seen.clone());
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let url = format!("http://{}", listener.local_addr().unwrap());
         let server = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
         let node = RgbLightningClient::new(&url, Some("test-only")).unwrap();
         let invoice = node.create_invoice(3, 100).await.unwrap();
         assert_eq!(invoice.amount_sats, 3);
-        assert_eq!(node.outbound_sats().await.unwrap(), 1000);
+        assert_eq!(node.outbound_sats().await.unwrap(), 1275);
         assert_eq!(node.outbound_sats_for(2).await.unwrap(), 0);
         assert_eq!(node.outbound_sats_for(3).await.unwrap(), 1000);
         assert_eq!(node.outbound_sats_for(1001).await.unwrap(), 0);

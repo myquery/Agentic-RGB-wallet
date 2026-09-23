@@ -1,5 +1,6 @@
 use crate::harness::{Action, ReservationAuthority, TaskKind, TaskSnapshot};
 use crate::rgb::RgbNode;
+use fs2::FileExt;
 use rgb402_core::{
     wallet::{PaymentRequest, PolicyDecision, WalletBalance, WalletPolicy},
     AssetId, PaymentId, PaymentStatus, UnixTimestamp,
@@ -9,7 +10,7 @@ use std::{
     collections::HashMap,
     fs::{File, OpenOptions},
     io::{BufRead, BufReader, Write},
-    path::{Path, PathBuf},
+    path::Path,
     sync::Arc,
 };
 use thiserror::Error;
@@ -155,28 +156,25 @@ struct Reservation {
 struct Journal {
     entries: Vec<Reservation>,
     file: Option<File>,
-    lock: Option<PathBuf>,
+    // Held by this descriptor. The kernel releases it when this process exits.
+    _lock: Option<File>,
     poisoned: bool,
-}
-impl Drop for Journal {
-    fn drop(&mut self) {
-        if let Some(path) = &self.lock {
-            let _ = std::fs::remove_file(path);
-        }
-    }
 }
 impl Journal {
     fn open(path: &Path) -> Result<Self, WalletError> {
         let lock = path.with_extension("lock");
         let lock_file = OpenOptions::new()
+            .read(true)
             .write(true)
-            .create_new(true)
+            .create(true)
+            .truncate(false)
             .open(&lock)?;
+        lock_file.try_lock_exclusive()?;
         lock_file.sync_all()?;
         let mut journal = Self {
             entries: vec![],
             file: None,
-            lock: Some(lock),
+            _lock: Some(lock_file),
             poisoned: false,
         };
         let file = OpenOptions::new()
@@ -646,7 +644,7 @@ mod tests {
             journal: Journal {
                 entries: vec![],
                 file: None,
-                lock: None,
+                _lock: None,
                 poisoned: false,
             },
             sequence: 0,
@@ -771,6 +769,7 @@ mod tests {
                 .economic_action_id
         );
         drop(persistent);
+        assert!(path.with_extension("lock").exists());
         let mut reopened = WalletService::open(node, w.policy, &path).unwrap();
         assert_eq!(
             reopened.task(&p.request.payment_hash).unwrap().state,
@@ -788,7 +787,8 @@ mod tests {
             PolicyDecision::Deny { .. }
         ));
         drop(reopened);
-        std::fs::remove_file(path).unwrap();
+        std::fs::remove_file(&path).unwrap();
+        std::fs::remove_file(path.with_extension("lock")).unwrap();
     }
     #[tokio::test]
     async fn approval_is_bound_to_one_plan() {

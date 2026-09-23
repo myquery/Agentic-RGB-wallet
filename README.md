@@ -173,7 +173,8 @@ cargo run -p buyer-agent --bin api
 
 Open **http://127.0.0.1:3030**. For Vite development, run
 `npm --prefix apps/wallet-ui run dev` and open http://127.0.0.1:5173.
-See [PWA setup, security and tests](docs/pwa.md). **Milestone 3 is complete:** one
+See [PWA setup, security and tests](docs/pwa.md) and the
+[wallet API service setup](deploy/systemd/README.md). **Milestone 3 is complete:** one
 PWA-driven, application-approved 5 R402USD payment settled, independently verified
 with Alice 490 → 485 and Bob 110 → 115. The [acceptance record](docs/acceptance/pwa-rgb-lightning-payment.json)
 and [approval screenshot](docs/acceptance/pwa-approval.png) document the flow.

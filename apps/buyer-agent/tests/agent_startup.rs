@@ -64,7 +64,8 @@ fn example_supplies_missing_wallet_settings_and_empty_key_does_not_override_expo
     assert!(String::from_utf8(output.stdout)
         .unwrap()
         .contains("RGB402 Agent"));
-    assert!(!fixture.0.join(".wallet-state.lock").exists());
+    // The path persists, but its kernel-held lock is released when the process exits.
+    assert!(fixture.0.join(".wallet-state.lock").exists());
 }
 #[test]
 fn exported_setting_wins_over_example() {
