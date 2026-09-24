@@ -586,3 +586,75 @@ async fn direct_uncertain_submission_preserves_reservation_and_blocks_retry() {
     assert_eq!(f.node.sends.load(Ordering::SeqCst), 1);
     assert_eq!(f.model_calls.load(Ordering::SeqCst), 0);
 }
+
+#[tokio::test]
+async fn merchant_settings_require_owner_csrf_and_public_router_cannot_edit() {
+    use rgb402_core::merchant::MerchantProfile;
+    let mut f = fixture();
+    f.app = Router::new();
+    let path = f.path.with_extension("store.jsonl");
+    let asset = AssetId::new("rgb:demo").unwrap();
+    let store = rgb402_merchant::store::Store::open(
+        MerchantProfile {
+            enabled: false,
+            public_catalog: false,
+            merchant_id: "bob@example.com".into(),
+            display_name: "Bob".into(),
+            accepted_assets: vec![asset.clone()],
+            catalog: "https://example.com/commerce/v1/wallets/bob/catalog".into(),
+            orders: "https://example.com/commerce/v1/wallets/bob/orders".into(),
+        },
+        asset,
+        f.node.clone(),
+        path.clone(),
+    )
+    .unwrap();
+    let store = Arc::new(AsyncMutex::new(store));
+    Arc::get_mut(&mut f.state.0).unwrap().merchant = Some(store.clone());
+    f.app = router(f.state.clone());
+    let body = r#"{"enabled":true,"public_catalog":true,"display_name":"Bob's Store","accepted_assets":["rgb:demo"],"products":[{"id":"tea","name":"Tea","amount":"4","asset_id":"rgb:demo","available":true}]}"#;
+    assert_eq!(
+        send(&f, "POST", "/api/merchant", body, false)
+            .await
+            .status(),
+        StatusCode::FORBIDDEN
+    );
+    let public = rgb402_merchant::store::public_router(store.clone());
+    for route in ["/api/merchant", "/internal/merchant"] {
+        let response = public
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(route)
+                    .header("content-type", "application/json")
+                    .body(Body::from(body))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+    assert_eq!(
+        send(&f, "POST", "/api/merchant", body, true).await.status(),
+        StatusCode::OK
+    );
+    let response = public
+        .oneshot(
+            Request::builder()
+                .uri("/commerce/v1/catalog")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let data: serde_json::Value =
+        serde_json::from_slice(&to_bytes(response.into_body(), 16384).await.unwrap()).unwrap();
+    assert_eq!(data[0]["name"], "Tea");
+    assert_eq!(f.node.sends.load(Ordering::SeqCst), 0);
+    assert_eq!(f.model_calls.load(Ordering::SeqCst), 0);
+    drop(store);
+    drop(f);
+    std::fs::remove_file(path.with_extension("settings.json")).unwrap();
+    std::fs::remove_file(path).unwrap();
+}

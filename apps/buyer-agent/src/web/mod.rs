@@ -24,6 +24,7 @@ use tokio::sync::Mutex as AsyncMutex;
 
 #[derive(Clone)]
 pub struct WebConfig {
+    pub merchant_enabled: bool,
     pub bind: std::net::SocketAddr,
     pub wallet_name: String,
     pub recipient_address: Option<String>,
@@ -31,6 +32,7 @@ pub struct WebConfig {
 impl Default for WebConfig {
     fn default() -> Self {
         Self {
+            merchant_enabled: false,
             bind: "127.0.0.1:3030".parse().unwrap(),
             wallet_name: "RGB Wallet".into(),
             recipient_address: None,
@@ -43,6 +45,7 @@ impl WebConfig {
             &std::env::var("WALLET_API_BIND").unwrap_or_else(|_| "127.0.0.1:3030".into()),
             std::env::var("WALLET_NAME").unwrap_or_else(|_| "RGB Wallet".into()),
         )?;
+        config.merchant_enabled = std::env::var("MERCHANT_ENABLED").as_deref() == Ok("true");
         if let Ok(address) = std::env::var("WALLET_RECIPIENT_ADDRESS") {
             if address.is_empty()
                 || address.len() > 318
@@ -68,6 +71,7 @@ impl WebConfig {
             return Err("invalid WALLET_NAME");
         }
         Ok(Self {
+            merchant_enabled: false,
             bind,
             wallet_name,
             recipient_address: None,
@@ -139,6 +143,7 @@ fn web_plan<S: serde::Serializer>(
 }
 struct Inner<M> {
     config: WebConfig,
+    merchant: Option<rgb402_merchant::store::Shared>,
     agent: AsyncMutex<WalletAgent<M>>,
     session: Mutex<Session>,
 }
@@ -158,6 +163,7 @@ impl<M: AgentModel + Sync + 'static> AppState<M> {
         let csrf = bytes.iter().map(|b| format!("{b:02x}")).collect();
         Ok(Self(Arc::new(Inner {
             config,
+            merchant: None,
             agent: AsyncMutex::new(agent),
             session: Mutex::new(Session {
                 csrf,
@@ -171,6 +177,12 @@ impl<M: AgentModel + Sync + 'static> AppState<M> {
             }),
         })))
     }
+    pub fn with_merchant(mut self, store: rgb402_merchant::store::Shared) -> Self {
+        Arc::get_mut(&mut self.0)
+            .expect("unshared startup state")
+            .merchant = Some(store);
+        self
+    }
     fn event(&self, kind: &'static str, text: String) {
         let mut session = self.0.session.lock().expect("session lock");
         let id = session.events.last().map_or(1, |e| e.id + 1);
@@ -181,6 +193,28 @@ impl<M: AgentModel + Sync + 'static> AppState<M> {
     }
     fn observe(&self, result: &ToolOutput) {
         let (kind, text) = match result {
+            ToolOutput::Merchant { data } => (
+                "wallet",
+                if let Some(products) = data.get("products").and_then(serde_json::Value::as_array) {
+                    products
+                        .iter()
+                        .map(|p| {
+                            format!(
+                                "{} — {} base units",
+                                p["name"].as_str().unwrap_or("Product"),
+                                p["amount"].as_str().unwrap_or("?")
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                } else {
+                    format!(
+                        "Order {} · {}",
+                        data["order_id"].as_str().unwrap_or(""),
+                        data["status"].as_str().unwrap_or("unavailable")
+                    )
+                },
+            ),
             ToolOutput::BtcPlan { plan } => match &plan.policy {
                 PolicyDecision::Deny { reason } => {
                     ("error", format!("BTC payment denied: {reason}"))
@@ -269,10 +303,15 @@ pub fn router<M: AgentModel + Sync + 'static>(state: AppState<M>) -> Router {
         .route("/api/invoice", post(create_invoice::<M>))
         .route("/api/send/prepare", post(prepare_direct::<M>))
         .route("/api/wallet", get(wallet::<M>))
+        .route(
+            "/api/merchant",
+            get(merchant::<M>).post(configure_merchant::<M>),
+        )
         .route("/api/assets", get(assets::<M>))
         .route("/api/activity", get(activity::<M>))
         .route("/api/payments/:id", get(payment::<M>))
         .route("/api/agent/message", post(message::<M>))
+        .route("/api/agent/conversation", post(new_conversation::<M>))
         .route("/api/approvals/:id/approve", post(approve::<M>))
         .route("/api/approvals/:id/reject", post(reject::<M>))
         .fallback(static_file)
@@ -358,9 +397,35 @@ async fn wallet<M: AgentModel + Sync + 'static>(State(state): State<AppState<M>>
             onchain: balance.onchain_spendable.to_string(),
         });
     }
+    let merchant_enabled = match &state.0.merchant {
+        Some(store) => store.lock().await.enabled(),
+        None => false,
+    };
     Json(serde_json::json!({"holdings":holdings,"sats":null,"network":"regtest","wallet_name":state.0.config.wallet_name,"recipient_address":state.0.config.recipient_address,
-        "commerce_enabled":agent.commerce_enabled(),"btc_policy":agent.btc_policy(),"btc_outbound_sats":agent.btc_balance().await.map(|n|n.to_string()),
+        "merchant_available":state.0.merchant.is_some(),"merchant_enabled":merchant_enabled,"commerce_enabled":agent.commerce_enabled(),"btc_policy":agent.btc_policy(),"btc_outbound_sats":agent.btc_balance().await.map(|n|n.to_string()),
         "policy":{"auto_approve_below":agent.policy_limits().auto_approve_below.to_string(),"max_single_payment":agent.policy_limits().max_single_payment.to_string(),"max_daily_spend":agent.policy_limits().max_daily_spend.to_string(),"max_carrier_msat":agent.policy_limits().max_carrier_msat.to_string()}})).into_response()
+}
+async fn merchant<M: AgentModel + Sync + 'static>(State(state): State<AppState<M>>) -> Response {
+    let Some(store) = &state.0.merchant else {
+        return error(
+            StatusCode::NOT_FOUND,
+            "Merchant setup requires a configured recipient address and listener",
+        );
+    };
+    Json(store.lock().await.overview().await).into_response()
+}
+async fn configure_merchant<M: AgentModel + Sync + 'static>(
+    State(state): State<AppState<M>>,
+    Json(settings): Json<rgb402_core::merchant::MerchantSettings>,
+) -> Response {
+    let Some(store) = &state.0.merchant else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+    let mut store = store.lock().await;
+    match store.configure(settings).await {
+        Ok(()) => Json(store.overview().await).into_response(),
+        Err(status) => error(status, "Store settings could not be saved. Check product IDs, positive integer prices and wallet assets."),
+    }
 }
 async fn assets<M: AgentModel + Sync + 'static>(State(state): State<AppState<M>>) -> Response {
     let Ok(agent) = state.0.agent.try_lock() else {
@@ -564,6 +629,37 @@ async fn message<M: AgentModel + Sync + 'static>(
     state.event("user", input.message.clone());
     launch(state, input.message, None, false);
     StatusCode::ACCEPTED.into_response()
+}
+async fn new_conversation<M: AgentModel + Sync + 'static>(
+    State(state): State<AppState<M>>,
+) -> Response {
+    {
+        let session = state.0.session.lock().expect("session lock");
+        if session.busy
+            || session.pending.is_some()
+            || session.machine_pending.is_some()
+            || session.btc_pending.is_some()
+        {
+            return error(
+                StatusCode::CONFLICT,
+                "Finish the current payment review first",
+            );
+        }
+    }
+    let Ok(mut agent) = state.0.agent.try_lock() else {
+        return error(StatusCode::CONFLICT, "Wallet is busy; try again shortly");
+    };
+    if agent.start_new_conversation().is_err() {
+        return error(
+            StatusCode::CONFLICT,
+            "Finish the current payment review first",
+        );
+    }
+    let mut session = state.0.session.lock().expect("session lock");
+    session.events.clear();
+    session.machine_result = None;
+    session.direct_pending = false;
+    Json(session.clone()).into_response()
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]

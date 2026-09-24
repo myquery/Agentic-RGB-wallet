@@ -220,13 +220,40 @@ def api_ready(node):
         return error.name == 'LockedNode'
 
 
-def start():
+def existing_build_ready():
+    binary = UPSTREAM / 'target/debug/rgb-lightning-node'
+    record = STATE / 'build.json'
+    if not binary.is_file() or not record.is_file():
+        raise Failure('Pinned node build is missing; run start.sh to build it first')
+    built = load('build.json')
+    if built.get('node_commit') != PIN or built.get('rust_lightning_commit') != LDK_PIN:
+        raise Failure('Pinned node build does not match this demo; run start.sh explicitly')
+    run(['docker', 'image', 'inspect', RUNTIME, '--format', '{{.Id}}'])
+
+
+def start(*, wake_ibd=False, expected_chain=None, reuse_build=False):
+    if expected_chain is None and (STATE / 'chain-anchor.json').exists():
+        expected_chain = load('chain-anchor.json')
     docker_ready()
-    checkout_and_build()
+    if reuse_build:
+        existing_build_ready()
+    else:
+        checkout_and_build()
     write_compose()
     # Compose reports any port collision without stopping unrelated containers.
     compose('up', '-d', 'bitcoind')
     wait_for('bitcoind RPC on localhost:28443', lambda: btc('getblockchaininfo'))
+    if expected_chain is not None:
+        height = btc('getblockcount')
+        anchor_height = expected_chain['height']
+        if height < anchor_height or btc('getblockhash', anchor_height) != expected_chain['hash']:
+            raise Failure('Bitcoin chain does not match the saved demo wallet state. '
+                          'Stop here and restore the original Bitcoin Core data; '
+                          'do not mine or rebootstrap these wallets.')
+    elif (STATE / 'bootstrap.json').exists() and btc('getblockcount') < 103:
+        raise Failure('Existing demo wallet state found but Bitcoin chain is below its '
+                      'setup height. Do not mine a replacement chain; restore the '
+                      'original Bitcoin Core data.')
     wallets = btc('listwallets')
     if 'miner' not in wallets:
         known = [wallet['name'] for wallet in btc('listwalletdir')['wallets']]
@@ -235,6 +262,10 @@ def start():
     if height < 103:
         mine(103 - height)
     compose('up', '-d', 'electrs', 'proxy')
+    # A regtest chain left idle for days can enter IBD again. One local block
+    # wakes bitcoind's tip notification so Electrs can finish its initial sync.
+    if wake_ibd and btc('getblockchaininfo').get('initialblockdownload'):
+        mine(1)
     wait_for('Electrs on localhost:55001', lambda: index_height() >= btc('getblockcount'))
     compose('up', '-d', 'alice', 'bob')
     for node in PORTS:
@@ -259,6 +290,36 @@ def unlock(node):
                              'bitcoind_rpc_username': 'user', 'bitcoind_rpc_password': 'password',
                              'bitcoind_rpc_host': 'bitcoind', 'bitcoind_rpc_port': 18443}},
                          'indexer_url': 'electrs:50001', 'announce_addresses': [], 'announce_alias': node})
+
+
+def resume():
+    # Resume an existing demo only. Never provision, fund, open a channel, or
+    # replace the wallet journals as part of routine recovery.
+    required = (STATE / 'compose.yaml', STATE / 'bootstrap.json',
+                STATE / 'chain-anchor.json',
+                STATE / 'wallet.env', STATE / 'data/alice', STATE / 'data/bob')
+    missing = [path.name for path in required if not path.exists()]
+    if missing:
+        raise Failure('Existing regtest setup is incomplete (' + ', '.join(missing)
+                      + '); use the explicit setup procedure, not resume')
+    anchor = load('chain-anchor.json')
+    if not isinstance(anchor.get('height'), int) or not isinstance(anchor.get('hash'), str):
+        raise Failure('Invalid saved Bitcoin chain anchor; refusing to resume')
+    start(wake_ibd=True, expected_chain=anchor, reuse_build=True)
+    for node in ('alice', 'bob'):
+        unlock(node)
+        wait_for(f'{node} unlocked API', lambda node=node: api(node, 'nodeinfo', timeout=5))
+        say(f'{node}: ready')
+    override = STATE / 'carol-compose.json'
+    if override.exists():
+        run(['docker', 'compose', '-p', PROJECT, '-f', STATE / 'compose.yaml',
+             '-f', override, 'up', '-d', '--no-deps', 'carol'])
+        PORTS['carol'] = 3103
+        wait_for('Carol API', lambda: api_ready('carol'))
+        unlock('carol')
+        wait_for('Carol unlocked API', lambda: api('carol', 'nodeinfo', timeout=5))
+        say('carol: ready')
+    say('Existing regtest nodes are ready. Refresh the wallet UI.')
 
 
 def channels(node):
@@ -298,6 +359,9 @@ def bootstrap():
         api('alice', 'connectpeer', {'peer_pubkey_and_addr': data['pubkeys']['bob'] + '@bob:9735'})
         for node in PORTS:
             wait_for(f'{node} existing channel', lambda node=node: ready_channel(node, data['channel_id']))
+        if not (STATE / 'chain-anchor.json').exists():
+            height = btc('getblockcount')
+            save('chain-anchor.json', {'height': height, 'hash': btc('getblockhash', height)})
         write_wallet_env(data['asset_id'])
         say('Reusing issued demo asset and usable channel.')
         return data
@@ -365,6 +429,8 @@ def bootstrap():
     for node in PORTS:
         wait_for(f'{node} usable RGB channel', lambda node=node: ready_channel(node, data['channel_id']))
     save('bootstrap.json', data)
+    height = btc('getblockcount')
+    save('chain-anchor.json', {'height': height, 'hash': btc('getblockhash', height)})
     write_wallet_env(data['asset_id'])
     say(f'Demo asset {data["asset_id"]}; channel {data["channel_id"]} is usable on both sides.')
     return data
@@ -446,7 +512,12 @@ def reset(yes):
     say(f'Deleting only development regtest state: {STATE}')
     docker_ready()
     if (STATE / 'compose.yaml').exists():
-        compose('down')
+        override = STATE / 'carol-compose.json'
+        if override.exists():
+            run(['docker', 'compose', '-p', PROJECT, '-f', STATE / 'compose.yaml',
+                 '-f', override, 'down'])
+        else:
+            compose('down')
     data = STATE / 'data'
     if data.exists():
         # Fixed mount and fixed children only; handles files from upstream UID 1000.
@@ -460,7 +531,7 @@ def reset(yes):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command', choices=['start', 'stop', 'reset', 'status', 'bootstrap', 'demo', 'verify'])
+    parser.add_argument('command', choices=['start', 'resume', 'stop', 'reset', 'status', 'bootstrap', 'demo', 'verify'])
     parser.add_argument('--yes', action='store_true', help='confirm destructive development reset only')
     args = parser.parse_args()
     safe_paths()
@@ -479,6 +550,7 @@ def main():
     LOGS.mkdir(parents=True, exist_ok=True)
     try:
         if args.command == 'start': start()
+        elif args.command == 'resume': resume()
         elif args.command == 'stop': stop()
         elif args.command == 'status': status()
         elif args.command == 'bootstrap':

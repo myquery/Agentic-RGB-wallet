@@ -4,6 +4,7 @@ use crate::{
     lightning::{ApprovedMachinePayment, LightningInvoice, LightningNode},
     wallet::WalletError,
 };
+use fs2::FileExt;
 use reqwest::{header, Client, Url};
 use rgb402_core::{
     machine::{MachineDecision, MachinePolicy},
@@ -114,14 +115,10 @@ pub struct CommerceService {
     plans: HashMap<String, (Purchase, MachinePlanView)>,
     approved: std::collections::HashSet<String>,
     file: File,
-    lock: PathBuf,
+    // Held for the service lifetime; process death releases it automatically.
+    _lock: File,
     poisoned: bool,
     tasks: std::sync::Mutex<HashMap<String, Action>>,
-}
-impl Drop for CommerceService {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_file(&self.lock);
-    }
 }
 impl CommerceService {
     pub fn open(node: Arc<dyn LightningNode>, config: CommerceConfig) -> Result<Self, WalletError> {
@@ -156,12 +153,14 @@ impl CommerceService {
             .map_err(|_| WalletError::Node("L402 client initialization failed"))?;
         let lock = config.state_path.with_extension("lock");
         let lock_file = OpenOptions::new()
+            .read(true)
             .write(true)
-            .create_new(true)
+            .create(true)
+            .truncate(false)
             .mode(0o600)
             .open(&lock)?;
+        lock_file.try_lock_exclusive()?;
         lock_file.sync_all()?;
-        // Remove a newly acquired lock on open failure, but never another process's lock.
         let opened = (|| -> Result<_, WalletError> {
             let file = OpenOptions::new()
                 .create(true)
@@ -184,13 +183,7 @@ impl CommerceService {
             .sync_all()?;
             Ok((file, reservations))
         })();
-        let (file, reservations) = match opened {
-            Ok(v) => v,
-            Err(e) => {
-                let _ = std::fs::remove_file(&lock);
-                return Err(e);
-            }
-        };
+        let (file, reservations) = opened?;
         let mut tasks = HashMap::new();
         for p in &reservations {
             let recovered = match Action::recover(
@@ -200,7 +193,6 @@ impl CommerceService {
             ) {
                 Ok(task) => task,
                 Err(error) => {
-                    let _ = std::fs::remove_file(&lock);
                     return Err(error);
                 }
             };
@@ -215,7 +207,7 @@ impl CommerceService {
             plans: HashMap::new(),
             approved: Default::default(),
             file,
-            lock,
+            _lock: lock_file,
             poisoned: false,
             tasks: std::sync::Mutex::new(tasks),
         })

@@ -160,6 +160,7 @@ mod tests {
     fn invoice_is_not_duplicated_in_model_plan_context() {
         let output = ToolOutput::Plan {
             plan: PlanView {
+                merchant_order: None,
                 plan_id: "bound-plan".into(),
                 request: PaymentRequest {
                     asset_id: AssetId::new("rgb:demo").unwrap(),

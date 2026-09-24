@@ -3,6 +3,7 @@ pub mod acquisition;
 pub mod bridge;
 pub mod btc;
 mod https;
+pub mod merchant;
 use async_trait::async_trait;
 #[cfg(test)]
 use https::validate_addresses;

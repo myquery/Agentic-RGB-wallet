@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+pub mod merchant;
 use std::fmt;
 use std::time::{SystemTime, UNIX_EPOCH};
 use thiserror::Error;

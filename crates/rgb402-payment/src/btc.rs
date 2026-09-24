@@ -4,6 +4,7 @@ use crate::{
     lightning::{ApprovedLightningPayment, LightningInvoice, LightningNode},
     wallet::WalletError,
 };
+use fs2::FileExt;
 use rgb402_core::{
     btc::BtcTransferPolicy, wallet::PolicyDecision, PaymentId, PaymentStatus, UnixTimestamp,
 };
@@ -51,17 +52,13 @@ pub struct BtcService {
     node: Arc<dyn LightningNode>,
     policy: BtcTransferPolicy,
     journal: File,
-    lock: PathBuf,
+    // Held for the service lifetime; process death releases it automatically.
+    _lock: File,
     poisoned: bool,
     reservations: Vec<Reservation>,
     plans: HashMap<String, Plan>,
     actions: HashMap<PaymentId, Action>,
     sequence: u64,
-}
-impl Drop for BtcService {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_file(&self.lock);
-    }
 }
 impl BtcService {
     pub fn policy(&self) -> &BtcTransferPolicy {
@@ -101,12 +98,15 @@ impl BtcService {
             ));
         }
         let lock = path.with_extension("lock");
-        OpenOptions::new()
+        let lock_file = OpenOptions::new()
+            .read(true)
             .write(true)
-            .create_new(true)
+            .create(true)
+            .truncate(false)
             .mode(0o600)
-            .open(&lock)?
-            .sync_all()?;
+            .open(&lock)?;
+        lock_file.try_lock_exclusive()?;
+        lock_file.sync_all()?;
         let loaded = (|| -> Result<_, WalletError> {
             let journal = OpenOptions::new()
                 .read(true)
@@ -136,18 +136,12 @@ impl BtcService {
             .sync_all()?;
             Ok((journal, reservations, actions))
         })();
-        let (journal, reservations, actions) = match loaded {
-            Ok(v) => v,
-            Err(e) => {
-                let _ = std::fs::remove_file(&lock);
-                return Err(e);
-            }
-        };
+        let (journal, reservations, actions) = loaded?;
         Ok(Self {
             node,
             policy,
             journal,
-            lock,
+            _lock: lock_file,
             poisoned: false,
             reservations,
             actions,

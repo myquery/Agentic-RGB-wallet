@@ -12,6 +12,7 @@ use std::{sync::Arc, time::Duration};
 
 #[derive(Clone)]
 struct Config {
+    carol_enabled: bool,
     domain: String,
     origin: String,
     asset: String,
@@ -33,6 +34,7 @@ fn node_port(account: &str) -> Option<u16> {
     match account {
         "alice" => Some(3101),
         "bob" => Some(3102),
+        "carol" => Some(3103),
         _ => None,
     }
 }
@@ -40,16 +42,37 @@ fn subject(c: &Config, account: &str) -> String {
     format!("acct:{account}@{}", c.domain)
 }
 async fn webfinger(State(c): State<Arc<Config>>, Query(q): Query<Resource>) -> impl IntoResponse {
-    let account = ["alice", "bob"]
-        .into_iter()
-        .find(|account| q.resource == subject(&c, account));
+    let account = ["alice", "bob", "carol"].into_iter().find(|account| {
+        (*account != "carol" || c.carol_enabled) && q.resource == subject(&c, account)
+    });
     let Some(account) = account else {
         return StatusCode::NOT_FOUND.into_response();
     };
-    ([("content-type", "application/jrd+json")], Json(json!({"subject":subject(&c,account),"links":[{"rel":"https://rgb402.example/relations/rgb-invoice","href":format!("{}/rgb/invoice/{account}", c.origin)},{"rel":"https://rgb402.example/relations/btc-invoice","href":format!("{}/btc/invoice/{account}", c.origin)}]}))).into_response()
+    let mut links = vec![
+        json!({"rel":"https://rgb402.example/relations/rgb-invoice","href":format!("{}/rgb/invoice/{account}", c.origin)}),
+        json!({"rel":"https://rgb402.example/relations/btc-invoice","href":format!("{}/btc/invoice/{account}", c.origin)}),
+    ];
+    if let Some(port) = merchant_port(account) {
+        if let Ok(response) = c
+            .client
+            .get(format!("http://127.0.0.1:{port}/commerce/v1/merchant"))
+            .send()
+            .await
+        {
+            if response.status().is_success() {
+                links.push(json!({"rel":"https://rgb402.example/relations/commerce","href":format!("{}/merchant",merchant_base(&c, account))}));
+            }
+        }
+    }
+    (
+        [("content-type", "application/jrd+json")],
+        Json(json!({"subject":subject(&c,account),"links":links})),
+    )
+        .into_response()
 }
 fn valid(c: &Config, account: &str, r: &Request) -> bool {
     node_port(account).is_some()
+        && (account != "carol" || c.carol_enabled)
         && r.subject == subject(c, account)
         && r.asset_id == c.asset
         && r.asset_amount > 0
@@ -84,7 +107,10 @@ struct BtcRequest {
     amount_sats: u64,
 }
 fn btc_payload(c: &Config, account: &str, r: &BtcRequest) -> Result<Value, StatusCode> {
-    if node_port(account).is_none() || r.subject != subject(c, account) {
+    if node_port(account).is_none()
+        || (account == "carol" && !c.carol_enabled)
+        || r.subject != subject(c, account)
+    {
         return Err(StatusCode::BAD_REQUEST);
     }
     let msat = r
@@ -119,6 +145,111 @@ async fn btc_invoice(
         .ok_or(StatusCode::BAD_GATEWAY)?;
     Ok(Json(json!({"invoice":invoice})))
 }
+fn merchant_port(account: &str) -> Option<u16> {
+    match account {
+        "alice" => Some(3053),
+        "bob" => Some(3052),
+        "carol" => Some(3051),
+        _ => None,
+    }
+}
+fn merchant_base(c: &Config, account: &str) -> String {
+    if account == "carol" {
+        format!("{}/commerce/v1", c.origin)
+    } else {
+        format!("{}/commerce/v1/wallets/{account}", c.origin)
+    }
+}
+async fn wallet_commerce_get(
+    State(c): State<Arc<Config>>,
+    Path((account, resource)): Path<(String, String)>,
+) -> Result<Json<Value>, StatusCode> {
+    if !["merchant", "catalog"].contains(&resource.as_str()) {
+        return Err(StatusCode::NOT_FOUND);
+    }
+    commerce_proxy(&c, &account, &resource, None).await
+}
+async fn wallet_commerce_post(
+    State(c): State<Arc<Config>>,
+    Path((account, resource)): Path<(String, String)>,
+    Json(body): Json<Value>,
+) -> Result<Json<Value>, StatusCode> {
+    if resource != "orders" {
+        return Err(StatusCode::NOT_FOUND);
+    }
+    commerce_proxy(&c, &account, "orders", Some(body)).await
+}
+async fn wallet_commerce_order(
+    State(c): State<Arc<Config>>,
+    Path((account, id)): Path<(String, String)>,
+) -> Result<Json<Value>, StatusCode> {
+    if id.len() != 68 || !id.starts_with("ord_") || !id[4..].bytes().all(|b| b.is_ascii_hexdigit())
+    {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+    commerce_proxy(&c, &account, &format!("orders/{id}"), None).await
+}
+async fn commerce_proxy(
+    c: &Config,
+    account: &str,
+    path: &str,
+    body: Option<Value>,
+) -> Result<Json<Value>, StatusCode> {
+    if account == "carol" && !c.carol_enabled {
+        return Err(StatusCode::NOT_FOUND);
+    }
+    let port = merchant_port(account).ok_or(StatusCode::NOT_FOUND)?;
+    let url = format!("http://127.0.0.1:{port}/commerce/v1/{path}");
+    let request = match body {
+        Some(v) => c.client.post(url).json(&v),
+        None => c.client.get(url),
+    };
+    let response = request.send().await.map_err(|_| StatusCode::BAD_GATEWAY)?;
+    if !response.status().is_success() {
+        return Err(
+            StatusCode::from_u16(response.status().as_u16()).unwrap_or(StatusCode::BAD_GATEWAY)
+        );
+    }
+    let body = response
+        .bytes()
+        .await
+        .map_err(|_| StatusCode::BAD_GATEWAY)?;
+    if body.len() > 16384 {
+        return Err(StatusCode::BAD_GATEWAY);
+    }
+    Ok(Json(
+        serde_json::from_slice(&body).map_err(|_| StatusCode::BAD_GATEWAY)?,
+    ))
+}
+async fn commerce_get(
+    State(c): State<Arc<Config>>,
+    Path(resource): Path<String>,
+) -> Result<Json<Value>, StatusCode> {
+    if !["merchant", "catalog"].contains(&resource.as_str()) {
+        return Err(StatusCode::NOT_FOUND);
+    }
+    commerce_proxy(&c, "carol", &resource, None).await
+}
+async fn commerce_post(
+    State(c): State<Arc<Config>>,
+    Path(resource): Path<String>,
+    Json(body): Json<Value>,
+) -> Result<Json<Value>, StatusCode> {
+    if resource != "orders" {
+        return Err(StatusCode::NOT_FOUND);
+    }
+    commerce_proxy(&c, "carol", "orders", Some(body)).await
+}
+async fn commerce_order(
+    State(c): State<Arc<Config>>,
+    Path(id): Path<String>,
+) -> Result<Json<Value>, StatusCode> {
+    if id.len() != 68 || !id.starts_with("ord_") || !id[4..].bytes().all(|b| b.is_ascii_hexdigit())
+    {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+    commerce_proxy(&c, "carol", &format!("orders/{id}"), None).await
+}
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let domain = std::env::var("RECIPIENT_DOMAIN").map_err(|_| "missing RECIPIENT_DOMAIN")?;
@@ -138,6 +269,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     let asset = std::env::var("RECIPIENT_ASSET_ID").map_err(|_| "missing RECIPIENT_ASSET_ID")?;
     let config = Arc::new(Config {
+        carol_enabled: std::env::var("CAROL_WALLET_ENABLED").as_deref() == Ok("true"),
         domain: domain.clone(),
         origin: format!("https://{domain}"),
         asset,
@@ -151,6 +283,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/.well-known/webfinger", get(webfinger))
         .route("/rgb/invoice/:account", post(invoice))
         .route("/btc/invoice/:account", post(btc_invoice))
+        .route(
+            "/commerce/v1/:resource",
+            get(commerce_get).post(commerce_post),
+        )
+        .route("/commerce/v1/orders/:id", get(commerce_order))
+        .route(
+            "/commerce/v1/wallets/:account/:resource",
+            get(wallet_commerce_get).post(wallet_commerce_post),
+        )
+        .route(
+            "/commerce/v1/wallets/:account/orders/:id",
+            get(wallet_commerce_order),
+        )
         .layer(DefaultBodyLimit::max(2048))
         .with_state(config);
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3050").await?;
@@ -164,6 +309,7 @@ mod tests {
     #[test]
     fn public_issuance_rejects_changed_intent_and_noninteger_amounts() {
         let c = Config {
+            carol_enabled: false,
             domain: "example.com".into(),
             origin: "https://example.com".into(),
             asset: "rgb:test".into(),
@@ -207,6 +353,7 @@ mod mapping_tests {
     async fn each_alias_advertises_only_its_own_invoice_route() {
         use axum::body::to_bytes;
         let c = Arc::new(Config {
+            carol_enabled: false,
             domain: "example.com".into(),
             origin: "https://example.com".into(),
             asset: "rgb:test".into(),
@@ -261,6 +408,7 @@ mod btc_tests {
     #[test]
     fn btc_request_preserves_sats_and_never_adds_rgb_carrier() {
         let c = Config {
+            carol_enabled: false,
             domain: "example.com".into(),
             origin: "https://example.com".into(),
             asset: "rgb:demo".into(),

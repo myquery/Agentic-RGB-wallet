@@ -13,7 +13,7 @@ function backend(error?:string){
  });
 }
 describe('wallet UI',()=>{
- it('renders actual balance without fabricating sats',async()=>{backend();render(<App/>);expect(await screen.findByTestId('primary-balance')).toBeInTheDocument();await waitFor(()=>expect(screen.getByTestId('primary-balance')).toHaveTextContent('490'));expect(screen.getByText('Sats balance not available from this wallet')).toBeInTheDocument()});
+ it('renders actual balance without fabricating sats',async()=>{backend();render(<App/>);expect(await screen.findByTestId('primary-balance')).toBeInTheDocument();await waitFor(()=>expect(screen.getByTestId('primary-balance')).toHaveTextContent('490'));expect(screen.getByText('Spendable outbound Lightning capacity')).toBeInTheDocument()});
  it('submits natural language to the agent API',async()=>{const fetch=backend();render(<App/>);await waitFor(()=>expect(screen.getByTestId('primary-balance')).toHaveTextContent('490'));fireEvent.click(screen.getByRole('button',{name:'Agent'}));fireEvent.change(screen.getByLabelText('Message your wallet'),{target:{value:'Pay this invoice: lnbcrt-demo'}});fireEvent.click(screen.getByRole('button',{name:'Send message'}));await waitFor(()=>expect(fetch).toHaveBeenCalledWith('/api/agent/message',expect.objectContaining({method:'POST',body:JSON.stringify({message:'Pay this invoice: lnbcrt-demo'})}))) });
  it('shows authoritative confirmation details in a dedicated dialog',()=>{render(<ApprovalSheet plan={plan} asset={asset} busy={false} onAction={()=>{}}/>);expect(screen.getByRole('dialog')).toHaveAccessibleName('Confirm payment');expect(screen.getByText('Manual approval required')).toBeInTheDocument();expect(screen.getByText('3,000 sats')).toBeInTheDocument();expect(screen.getByText('lnbcrt-bound-invoice')).toBeInTheDocument()});
  it('approval sends only plan identity and csrf, never editable payment fields',async()=>{const fetch=vi.spyOn(globalThis,'fetch').mockResolvedValue(new Response(null,{status:202}));await approvePlan('bound-plan-1','test-csrf',true);expect(fetch).toHaveBeenCalledWith('/api/approvals/bound-plan-1/approve',expect.objectContaining({method:'POST',body:'{}',headers:{'Content-Type':'application/json','X-Wallet-CSRF':'test-csrf'}}))});
@@ -92,3 +92,16 @@ it('makes a failed BTC payment terminal in activity without offering a retry',()
  expect(screen.getByText('Failed at the node. This payment will not retry automatically.')).toBeInTheDocument();
  expect(screen.queryByRole('button',{name:/retry/i})).not.toBeInTheDocument();
 });
+
+ it('sends chat on Enter but preserves Shift+Enter and composition',async()=>{
+ const fetch=backend();render(<App/>);
+ await waitFor(()=>expect(screen.getByTestId('primary-balance')).toHaveTextContent('490'));
+ fireEvent.click(screen.getByRole('button',{name:'Agent'}));
+ const input=screen.getByLabelText('Message your wallet');
+ fireEvent.change(input,{target:{value:'Show my balance'}});
+ fireEvent.keyDown(input,{key:'Enter',shiftKey:true});
+ fireEvent.keyDown(input,{key:'Enter',isComposing:true});
+ expect(fetch.mock.calls.filter(([,options])=>options?.method==='POST')).toHaveLength(0);
+ fireEvent.keyDown(input,{key:'Enter'});
+ await waitFor(()=>expect(fetch).toHaveBeenCalledWith('/api/agent/message',expect.objectContaining({method:'POST',body:JSON.stringify({message:'Show my balance'})})));
+ });
