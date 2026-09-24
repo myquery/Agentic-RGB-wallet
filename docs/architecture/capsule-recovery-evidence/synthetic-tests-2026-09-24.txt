@@ -1,0 +1,19 @@
+Command:
+  python3 -m unittest tools/capsule/test_capsule.py
+
+Result:
+  Ran 5 tests in 0.079s
+  OK
+
+Covered:
+  - synthetic node state plus RGB/BTC journal round trip
+  - committed generation and journal sequence
+  - stale generation refusal
+  - second writer refusal
+  - explicit takeover and old-epoch refusal
+  - component hash corruption refusal
+  - missing COMMITTED marker refusal
+  - forbidden log refusal
+
+No live wallet path, identifier, credential, invoice, seed, password, token,
+preimage, private key, or peer address was captured.
