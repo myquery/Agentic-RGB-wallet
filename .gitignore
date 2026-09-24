@@ -50,3 +50,4 @@ __pycache__/
 !/docs/architecture/capsule-recovery-evidence/
 /docs/architecture/capsule-recovery-evidence/*
 !/docs/architecture/capsule-recovery-evidence/synthetic-tests-2026-09-24.txt
+!/docs/architecture/capsule-recovery-evidence/real-active-channel-2026-09-24.json

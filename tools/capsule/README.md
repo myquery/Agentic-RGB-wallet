@@ -24,3 +24,9 @@ Use `python3 tools/capsule/capsule.py --help` for the CLI. A snapshot spec is an
 explicit list of named source paths, classifications, and capsule destinations.
 Any log, lock, symlink, missing component, hash mismatch, incomplete generation,
 stale generation, or inactive writer epoch fails closed.
+
+`real_fixture.py` is the isolated real-node experiment. It uses only the fixed
+`.var/regtest/capsule-test` namespace and a separate Docker Compose project,
+chain, ports, nodes, peer identities, and journals. Its `run`, `resume`,
+`continue`, `verify-evidence`, and `destroy` mutations require `--yes`; guarded
+continuations refuse phases whose durable prerequisites do not match exactly.

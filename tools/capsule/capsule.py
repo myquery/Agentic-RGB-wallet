@@ -266,6 +266,7 @@ def validate(repo: Path, generation_dir: Path, allow_stale: bool = False) -> dic
         raise CapsuleError("STALE: capsule is not the durable current generation")
     if manifest["epoch"] > current["epoch"]:
         raise CapsuleError("INCOMPATIBLE: capsule epoch is ahead of registry")
+    declared_files = set()
     for name, component in manifest["components"].items():
         safe_relative(name)
         root = generation_dir / "state" / safe_relative(component["destination"])
@@ -274,11 +275,16 @@ def validate(repo: Path, generation_dir: Path, allow_stale: bool = False) -> dic
             rel = safe_relative(entry["path"])
             path = root if component["kind"] == "file" else root / rel
             expected.add(path)
+            declared_files.add(path)
             if not path.is_file() or path.stat().st_size != entry["size"] or sha256(path) != entry["sha256"]:
                 raise CapsuleError(f"CORRUPT: component hash mismatch: {name}")
         actual = {p for p in ([root] if component["kind"] == "file" and root.exists() else root.rglob("*")) if p.is_file()}
         if actual != expected:
             raise CapsuleError(f"CORRUPT: unexpected or missing files: {name}")
+    state_root = generation_dir / "state"
+    actual_files = {path for path in state_root.rglob("*") if path.is_file()}
+    if actual_files != declared_files:
+        raise CapsuleError("CORRUPT: undeclared or missing capsule state")
     return manifest
 
 

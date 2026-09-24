@@ -72,6 +72,12 @@ class CapsuleTest(unittest.TestCase):
         with self.assertRaisesRegex(CapsuleError, "forbidden"):
             snapshot(self.repo, self.spec, "writer-a", self.epoch)
 
+    def test_undeclared_root_file_rejected(self):
+        generation = snapshot(self.repo, self.spec, "writer-a", self.epoch)
+        (generation / "state/undeclared").write_text("unexpected")
+        with self.assertRaisesRegex(CapsuleError, "CORRUPT"):
+            validate(self.repo, generation)
+
     def test_unmarked_and_live_fixtures_refused(self):
         root = Path(self.temp.name)
         with self.assertRaisesRegex(CapsuleError, "NOT_DISPOSABLE"):

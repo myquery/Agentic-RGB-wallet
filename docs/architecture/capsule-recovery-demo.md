@@ -1,224 +1,272 @@
-# Capsule A Recovery Demonstrator
+# Capsule A real active-channel recovery demonstrator
 
-Status: **PARTIALLY PROVEN**. Date: 2026-09-24. This demonstrator did not read,
-stop, copy, or modify the funded Alice/Bob/Carol environment.
+Status: **PROVEN for clean-stop Capsule A recovery; PARTIALLY PROVEN overall**.
+Date: 2026-09-24.
 
 ## Existing happy-path impact
 
 **Existing happy path: UNCHANGED. Capsule demonstrator: additive and isolated.**
 
-No file under `apps/`, `crates/`, the existing regtest scripts, node storage,
-wallet startup, payment APIs, configuration, or journal formats changed. Normal
-startup does not load this tool and has no capsule, generation, lease, epoch,
-snapshot, or restore dependency. A source diff from the pre-constraint
-demonstrator commit confirms the existing application source tree is identical.
-
-The control flow remains:
+No application, payment, journal, node API, node storage format, normal regtest
+script, frontend, or startup file changed. Normal Luma startup has no capsule,
+generation, lease, epoch, snapshot, or restore dependency. The control flow is
+still:
 
 ```text
 prepare → durable reservation → human/application approval
         → execute exactly once → settlement/reconciliation
 ```
 
-The post-change regression run passed formatting, workspace compilation,
-Clippy with warnings denied, and all 154 Rust tests. An initial sandboxed test
-run denied five loopback listener creations; rerunning the unchanged suite with
-loopback permission passed all five and the entire workspace. The frontend was
-not touched. The six capsule-only Python tests also pass.
+All new behavior is under `tools/capsule` and requires a marked disposable
+fixture. The final regression run is recorded below.
 
-## 1. Objective
+## 1. Objective and result
 
-Prove the local safety machinery required to treat node state and Luma journals
-as one versioned consistency boundary. The prototype is in `tools/capsule`.
-Real active-channel recovery is deliberately not claimed.
+A real disposable Luma wallet with a funded active RGB Lightning channel was
+cleanly stopped, snapshotted, deleted, restored, reconciled, and used for a new
+settled payment. It then committed generation 2. **PROVEN.**
+
+This proves the clean-stop experimental boundary. It does not prove crash-time
+atomicity while LDK, RGB, or journal writes are in progress.
 
 ## 2. Disposable topology
 
-The automated fixture uses temporary directories containing synthetic manager,
-monitor, RGB-journal, and BTC-journal objects. **PROVEN:** destructive tests are
-isolated from `.var/regtest`. **NOT PROVEN:** a funded node topology has not yet
-been executed.
+The fixed namespace was `.var/regtest/capsule-test/`, marked by
+`.luma-capsule-disposable`. The `luma-capsule-test` Compose project ran its own:
 
-Every operation requires a `.luma-capsule-disposable` marker created only in an
-empty directory whose name contains `capsule-test`. Repository, spec, sources,
-generation, and restore target must share that marked root. Alice, Bob, and
-Carol path components and wallet IDs are rejected in code. The normal
-`.var/regtest` tree is rejected unless the path is under the dedicated
-`.var/regtest/capsule-test/` namespace.
+- Bitcoin Core and miner wallet;
+- Electrs indexer;
+- RGB proxy;
+- `capsule-test-alice` and `capsule-test-bob` RGB Lightning nodes;
+- node roots, peer identities, channel, journals, ports, and chain.
 
-## 3. Capsule Manifest v1
+It did not share the control group's chain or Docker network. Destructive
+commands require `--yes`, the fixed marker, and the fixed namespace. The capsule
+kernel rejects unmarked/cross-fixture paths, normal `.var/regtest` paths,
+Alice/Bob/Carol wallet IDs, and exact Alice/Bob/Carol path components.
 
-The JSON manifest records schema version, wallet ID, hashed/public fingerprint
-and node ID supplied by the fixture, network, project/node revisions, writer
-epoch, generation, previous generation, UTC creation time, and an explicit map
-of components. Every component records classification, destination, kind, total
-size, optional journal sequence, and each file's relative path, size, and
-SHA-256 digest. Secret fields are not accepted by the spec schema.
+One procedural deviation occurred during initial mapping: the existing
+regtest Compose configuration was viewed read-only to understand image and port
+conventions. No funded wallet API, node data, channel, journal, credential, or
+wallet configuration was queried or copied, and no control-group process or
+file was changed. The real experiment itself used only the isolated project.
 
-## 4. Allowlisted contents
+## 3. Real fixture baseline
 
-The input spec must enumerate every component and classify it as `AUTHORITY`,
-`SAFETY-CRITICAL`, `APPLICATION-JOURNAL`, or `RECOVERY-METADATA`. There is no
-archive-the-root fallback. Logs, `.log`, `.lock`, log/session/conversation
-directories, symlinks, unsafe paths, and absent sources fail closed. Uncertain
-transfer artifacts should be named as safety-critical components.
+The fixture created one RGB asset, funded both nodes, opened one 100,000-sat RGB
+channel with non-zero allocation, and settled one application-approved 5-unit
+RGB payment through the existing wallet binary. Luma journal sequence was 1.
+Committed evidence contains only SHA-256 hashes of the wallet fingerprint, node
+ID, channel ID, and asset ID.
 
-## 5. Snapshot procedure
+## 4. Manifest v1 and allowlist
 
-The caller must first stop new preparation, reconcile in-flight work, flush
-journals, and establish node quiescence. The tool then checks the writer epoch,
-copies each allowed component to a partial generation, hashes the copies, writes
-and fsyncs the manifest, writes `COMMITTED`, atomically renames the generation,
-and conditionally advances the registry. **BLOCKED:** the pinned node exposes no
-formal cross-store quiescence barrier; the tool cannot truthfully create one.
+Each source file is an explicit component; there is no whole-directory archive
+or blacklist fallback. Generation 1 contained 44 components/44 files and
+182,784 component bytes. Generation 2 contained 57 components/57 files and
+195,895 component bytes. Each generation classified one authority component,
+two recovery metadata components, three application journals, and all remaining
+node/RGB/LDK objects as safety-critical.
+
+The allowlist conservatively included encrypted key material, fingerprint and
+indexer metadata, manager, monitors and monitor updates, payment/sweeper/channel
+state, RGB channel/transfer objects, RGB and BDK databases, stash/state/index,
+and Luma RGB/BTC/machine journal files. Empty optional journals were retained.
+No minimization was attempted.
+
+Logs, log directories, `.log`, `.lock`, sessions, conversations, diagnostics,
+symlinks, and unsafe paths are rejected. Both real manifests contained zero
+forbidden paths. Validation also rejects undeclared files anywhere under the
+capsule state root.
+
+## 5. Clean-stop snapshot boundary
+
+No wallet API server was running for the disposable wallet; each payment CLI
+process had exited and released its journal lock. Known payment status was
+reconciled as `Settled`. The harness then sent Docker `SIGTERM` with a 60-second
+grace period and required container state `Running=false` before reading files.
+
+The pinned node handles `SIGTERM`, waits for an in-progress state change, calls
+`stop_ldk`, and only then completes shutdown (`.dev/rgb-lightning-node/src/main.rs`,
+`shutdown_signal`). This establishes a practical clean process boundary. It
+does not provide a formal distributed transaction joining LDK, RGB, and Luma
+journal writes. **Clean stop: PROVEN. Concurrent-write snapshot: NOT PROVEN.**
 
 ## 6. Commit and generation model
 
-Generations are monotonic per wallet. A partial directory is invalid. A
-generation is valid only with a readable v1 manifest, all declared objects and
-hashes, a `COMMITTED` marker, and equality with the registry's current
-generation. **PROVEN** by synthetic tests.
+The writer epoch is checked before copying every component. Files enter a
+partial generation, are hashed, and receive an fsynced manifest. `COMMITTED` is
+written before atomic directory rename, then the registry conditionally advances
+the generation. A partial directory cannot validate.
 
-## 7. Writer epoch model
+Generation 1 recorded journal sequence 1. After restore and a second settled
+payment, generation 2 recorded `previous_generation=1`, `generation=2`, the same
+writer epoch, and journal sequence 2. **PROVEN.**
 
-The local JSON registry is serialized with `flock` and atomically replaced.
-Acquire rejects a different owner; explicit takeover increments the epoch; all
-snapshot and restore boundaries recheck owner and epoch. **PROVEN at the
-demonstrator boundary.** It is not cryptographic and does not fence direct node
-API access or a process on another host.
+## 7. Destruction and restore
 
-## 8. Restore procedure
+After generation 1 committed, the harness removed only disposable Alice's node
+root and Luma journals. The capsule and independent peer/chain infrastructure
+remained. Restore validated the marker, schema, current generation, epoch,
+component set, sizes, hashes, and `COMMITTED`; copied into a partial target;
+rechecked epoch; atomically installed the target; and started the restored node.
 
-Validate the committed marker, schema, durable current generation, epoch,
-paths, complete file set, sizes, and hashes. Require the active writer epoch and
-an empty target. Copy to a partial target, recheck the epoch, then atomically
-rename. The application must reconcile node status before entering `READY`.
-
-## 9. Active-channel recovery result
-
-**NOT PROVEN.** No funded active channel was destroyed or restored. The exact
-blocker is the absence of a tested quiescence contract spanning the pinned
-node's LDK/RGB persistence and Luma's journals. A clean process stop is the
-safest candidate boundary for the disposable experiment, but it still requires
-end-to-end validation.
-
-## 10. Crash matrix
-
-| Crash point | Expected persisted state | Resubmitted? | Result |
-|---|---|---:|---|
-| partial generation before manifest | no committed capsule | no | **PROVEN** marker required |
-| after manifest, before `COMMITTED` | incomplete | no | **PROVEN** marker required |
-| after generation rename, before registry advance | generation is not current | no | **PARTIALLY PROVEN** validation rejects it as stale |
-| reservation before node submission | journal reservation | no | **NOT PROVEN** with real wallet |
-| submission before response | reservation plus node status | no | **NOT PROVEN** with real wallet |
-| monitor/RGB persistence | implementation-specific | no | **BLOCKED** pending safe node hooks |
-
-## 11. Stale-generation test
-
-Generation 1 was created, journal state advanced, and generation 2 committed.
-Activation of generation 1 returned `STALE`. **PROVEN** against the durable
-local registry.
-
-## 12. Cross-component skew
-
-Every file is bound to one manifest by size and hash; swapping a component from
-another generation produces `CORRUPT`. **PARTIALLY PROVEN:** hash corruption is
-tested, but a dedicated complete component-swap matrix and authenticated
-manifest are pending.
-
-## 13. Concurrent-writer test
-
-Writer B was rejected while A held epoch 1. Explicit takeover gave B epoch 2,
-then A's snapshot was rejected as `SPLIT_BRAIN`. **PROVEN at the Luma capsule
-boundary.** Node-level fencing remains **NOT PROVEN**.
-
-## 14. Corrupt and incomplete capsules
-
-Manager modification was rejected by hash validation and removal of
-`COMMITTED` was rejected as incomplete. Forbidden logs fail snapshot creation.
-Missing-monitor, missing-RGB-DB, truncated-manifest, and unexpected-file paths
-use the same validation mechanisms but need named tests. **PARTIALLY PROVEN.**
-
-## 15. Seed-only negative test
-
-**BLOCKED.** The current application has no durable external fact declaring
-that a mnemonic previously controlled channel/RGB state. The demonstrator will
-not invent readiness from a seed. Production activation needs the capsule
-registry (or another authenticated recovery record) to mark seed-only recovery
-as `MANUAL_RESCUE_REQUIRED`.
-
-## 16. Measurements
-
-The synthetic fixture is intentionally too small to support useful storage or
-duration conclusions. The manifest records component byte sizes and journal
-line sequences. Export/restore duration, channel/payment/transfer counts, and
-real LDK/RGB size measurements await the disposable funded fixture.
-
-## 17. Proven invariants
-
-- Explicitly allowlisted inputs; forbidden diagnostic state fails closed.
-- A partial or uncommitted generation cannot activate.
-- File loss/change and undeclared files cannot activate.
-- An older durable generation cannot activate.
-- A second owner cannot acquire without explicit takeover.
-- Takeover increments epoch and invalidates the old writer at the kernel edge.
-- Restore uses a partial target and rechecks writer ownership.
-- Unmarked, live-wallet-named, and cross-fixture paths are rejected before use.
-
-## 18. Failed or blocked invariants
-
-Same node identity, BTC/RGB ownership, active channel, prior payment state, and
-post-restore payment are **NOT PROVEN**. Unknown submission reconciliation and
-monitor/RGB crash boundaries are **NOT PROVEN**. Cross-host/cryptographic
-fencing is **BLOCKED** by the local-only registry design.
-
-## 19. Security limitations
-
-SHA-256 detects accidental/copy corruption but the manifest is not signed or
-MACed. IDs supplied by a fixture are not independently queried from the node.
-The registry is suitable only for a local demonstrator. Snapshot plaintext must
-remain on an encrypted disposable volume; this prototype does not implement
-encryption, VSS, remote leases, authorization, or secret scanning.
-
-## 20. Recommendation
-
-Next, add a dedicated two-node regtest namespace and a clean stop/start adapter,
-then run active-channel round-trip recovery without sharing ports, volumes,
-keys, peers, or journals with Alice/Bob/Carol. Add explicit payment-boundary
-hooks before attempting the crash matrix. Do not begin the Android WDK spike
-until same-identity active-channel recovery and status-only payment recovery are
-proven.
-
-## Recovery state machine
+The observed recovery state machine was:
 
 ```text
-UNINITIALIZED → CAPSULE_FOUND → VALIDATING → RESTORING → RECONCILING → READY
-                         ↘ STALE | CORRUPT | INCOMPATIBLE | SPLIT_BRAIN
-                                  | INCOMPLETE | MANUAL_RESCUE_REQUIRED
+CAPSULE_FOUND → VALIDATING → RESTORING → RECONCILING → READY
 ```
 
-Economic operations are permitted only in `READY`. The current CLI implements
-validation and restore primitives; application/node reconciliation and the
-transition into `READY` remain integration work.
+No economic operation ran before the node unlocked and the restored channel
+reported `Opened`, `ready`, and `is_usable`.
 
-## Current success criteria
+## 8. Identity, BTC, RGB, and active channel
 
-- [ ] same node identity after real restore — **NOT PROVEN**
-- [ ] same BTC state — **NOT PROVEN**
-- [ ] same RGB state — **NOT PROVEN**
-- [ ] active funded channel survives — **NOT PROVEN**
-- [x] synthetic Luma journals survive restore — **PROVEN**
-- [ ] real previous payment is not duplicated — **NOT PROVEN**
-- [ ] new real payment succeeds — **NOT PROVEN**
-- [ ] uncertain real submission reconciles — **NOT PROVEN**
-- [x] stale generation rejected — **PROVEN**
-- [~] component skew rejected — **PARTIALLY PROVEN**
-- [~] corrupt/incomplete capsule rejected — **PARTIALLY PROVEN**
-- [x] second writer rejected — **PROVEN at kernel boundary**
-- [x] takeover increments epoch — **PROVEN at kernel boundary**
-- [x] old writer rejected after takeover — **PROVEN at kernel boundary**
+Before/after values were read from the node, not the UI. Exact wallet
+fingerprint and Lightning node ID matched. The full BTC balance response and
+full RGB asset-balance response matched. Network remained regtest. Channel ID,
+funding outpoint, peer public key, capacity, and asset ID matched; capacity was
+100,000 sats. The channel returned to usable state automatically after unlock,
+showing that restored peer/channel state reconnected without a new channel.
 
-The milestone question therefore remains open: the capsule consistency and
-single-owner mechanics work locally, but the exact wallet lifecycle cannot move
-to an embedded mobile runtime until the active-channel and cross-store
-quiescence experiments pass.
+The aggregate RGB balance and snapshotted channel state were exact. The harness
+did not separately persist the pre-restore `asset_local_amount` and
+`asset_remote_amount` response fields in redacted evidence, so that narrower
+per-channel presentation comparison is **PARTIALLY PROVEN**; file hashes and the
+full RGB balance equality cover the authoritative restored state.
+
+## 9. Journal continuity and duplicate protection
+
+The restored RGB journal matched its pre-snapshot SHA-256 and sequence 1. Paying
+the same invoice through the existing wallet idempotency path returned failure
+and did not advance the journal. No second node submission path was invoked by
+the wallet. A fresh, application-approved payment then settled, advanced the
+journal to sequence 2, and reduced restored Alice's outbound RGB balance by the
+exact 5-unit amount. **PROVEN at the Luma boundary.**
+
+## 10. Real stale generation and writer epoch
+
+After generation 2 contained the newer payment state, validation of generation
+1 returned `STALE`. It could not enter `READY`. **PROVEN.**
+
+Runtime B was refused while runtime A owned epoch 1. Explicit takeover advanced
+the registry to epoch 2. Runtime A's subsequent snapshot attempt returned
+`SPLIT_BRAIN` before state copying. No two runtimes were allowed to mutate the
+channel. **PROVEN at the local capsule boundary.** Direct node APIs are not
+cryptographically fenced by this demonstrator.
+
+## 11. Cross-store skew and corrupt state
+
+Real generation copies were used. Each of these refused validation:
+
+- generation-2 node state plus generation-1 Luma journal;
+- generation-1 node state plus generation-2 Luma journal, with stale checking
+  bypassed only to isolate the hash/skew assertion;
+- generation-2 manifest plus generation-1 manager;
+- missing manager, monitor, monitor update, RGB database, or Luma journal;
+- corrupt manifest, wrong component hash, missing `COMMITTED`, or undeclared
+  extra state file.
+
+All returned `CORRUPT` except missing `COMMITTED`, which returned `INCOMPLETE`.
+No fallback/default node startup was attempted. **PROVEN.**
+
+## 12. Status-only reconciliation
+
+Settled status was queried after restore and before continuing. The application
+never retried an uncertain payment. Creating an actual “submission may have
+occurred but response was lost” boundary is **BLOCKED — no safe
+submission-boundary hook**. Production payment semantics were not modified to
+manufacture this state.
+
+## 13. Measurements
+
+These are observations from one disposable fixture and must not be extrapolated:
+
+| Measurement | Observed |
+|---|---:|
+| Active channels | 1 |
+| RGB assets | 1 |
+| Settled payments | 2 |
+| Node directory after recovery | 359,068 bytes |
+| LDK state | 84,164 bytes |
+| RGB-named state files | 154,848 bytes |
+| BDK files in capsule | 5,248 bytes |
+| Transfer artifacts | 13,071 bytes |
+| Luma RGB journal after payment 2 | 1,582 bytes |
+| Generation 1 capsule | 202,802 bytes |
+| Generation 2 capsule | 222,333 bytes |
+| Generation 1 snapshot | 0.032 seconds |
+| Generation 2 snapshot | 0.040 seconds |
+| Generation 1 restore copy | 0.016 seconds |
+| Generation 2 restore copy | 0.024 seconds |
+| Generation 2 start/unlock/reconcile | 17.357 seconds |
+
+Capsule sizes exclude logs, locks, and diagnostics. Node-directory size is
+reported separately and may include runtime-created diagnostic files.
+
+## 14. Regression results
+
+The capsule tests, format check, workspace check, Clippy, and full workspace
+tests were run after implementation. The frontend was not touched.
+
+| Check | Result |
+|---|---|
+| `python3 -m unittest tools/capsule/test_capsule.py` | 7 passed |
+| `cargo fmt --all -- --check` | PASS |
+| `cargo check --workspace` | PASS |
+| `cargo clippy --workspace --all-targets -- -D warnings` | PASS |
+| `cargo test --workspace` | 154 passed, 0 failed |
+
+The first restricted test run denied loopback listener creation; rerunning the
+unchanged suite with loopback permission passed. Existing production source is
+unchanged from the pre-milestone commit.
+
+## 15. Required evidence table
+
+| Invariant | Result | Evidence |
+|---|---|---|
+| same node identity after restore | **PROVEN** | exact pre/post node ID and wallet fingerprint equality; committed hashes |
+| same BTC state | **PROVEN** | exact authoritative `btcbalance` response equality |
+| same RGB state | **PROVEN** | exact authoritative `assetbalance` response equality and component hashes |
+| active funded channel survives | **PROVEN** | same ID/outpoint/peer/capacity; `Opened`, ready, usable; new payment |
+| same journal restored | **PROVEN** | exact journal SHA-256 and sequence 1 |
+| previous payment not duplicated | **PROVEN** | duplicate wallet attempt failed; journal stayed sequence 1 |
+| new payment succeeds after restore | **PROVEN** | status `Settled`; exact 5-unit outbound delta; journal sequence 2 |
+| restored wallet creates N+1 capsule | **PROVEN** | generation 2, previous 1, same writer epoch |
+| stale real N rejected | **PROVEN** | generation 1 returned `STALE` after real payment 2 |
+| cross-store skew rejected | **PROVEN** | old/new node/journal swap variants returned `CORRUPT` |
+| second writer rejected | **PROVEN** | runtime B returned `SPLIT_BRAIN` before takeover |
+| explicit takeover increments epoch | **PROVEN** | epoch 1 → 2 |
+| old writer rejected | **PROVEN** | runtime A snapshot returned `SPLIT_BRAIN` before copying |
+| corrupt/incomplete real capsule rejected | **PROVEN** | ten named real-state variants refused |
+| uncertain payment reconciles without retry | **BLOCKED** | no safe submission-response boundary hook |
+
+The redacted machine-readable record is
+`capsule-recovery-evidence/real-active-channel-2026-09-24.json`.
+
+## 16. Security and scope limitations
+
+The manifest uses SHA-256 but is not authenticated with a signature or MAC. The
+epoch registry is local and not a distributed or cryptographic lease. Capsule
+plaintext remains local; no encryption or VSS was implemented. A direct caller
+could bypass the Luma epoch and call the node API, so production fencing remains
+future work. Seed-only recovery detection remains blocked without an
+authenticated external record that the identity previously held channel/RGB
+state.
+
+## 17. Decision
+
+**Yes.** Evidence shows that a real Luma RGB Lightning wallet with an active
+funded channel can be represented as a versioned recoverable Capsule A and can
+resume safe payments after full destruction and clean-stop restore. The proven
+scope includes identity, BTC/RGB state, active-channel usability, Luma journal
+continuity, duplicate refusal, a new settled payment, generation progression,
+stale refusal, skew/corruption refusal, and local writer fencing.
+
+There is no demonstrated recovery/state reason that prevents attempting this
+same lifecycle with one embedded Android WDK/UTEXO wallet. The active-channel
+gate passed, so an Android compatibility spike is now justified. That spike
+must reproduce these invariants; it must not treat this clean-stop result as
+proof of mobile crash atomicity, authenticated remote backup, or production
+multi-device fencing. The missing safe uncertain-submission hook remains a test
+gap, not a reason to redesign the existing happy path.

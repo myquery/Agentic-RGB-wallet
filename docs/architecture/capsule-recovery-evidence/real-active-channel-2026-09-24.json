@@ -1,0 +1,74 @@
+{
+  "observed_at": "2026-09-24T14:49:15.239585+00:00",
+  "identifiers": {
+    "wallet_fingerprint_sha256": "fa8485ed0c6a90f3a270bbf6fa75ccf1b5c66124ceca798bc6f903585846299f",
+    "node_id_sha256": "e9256e7c467c12b378c5e62279599bd9022d8b518633eb9c5498c10aa28b1c86",
+    "channel_id_sha256": "22b56b9e0fc5d5c687eab31fc78869eb82e1a7ba1b0660f6420da9837da835bb",
+    "asset_id_sha256": "ce10bff32b62252254887a9d94f409e9e18b367128d65605e2baf09c6daa6cca"
+  },
+  "identity_equal": true,
+  "btc_equal": true,
+  "rgb_equal": true,
+  "channel_equal": true,
+  "journal_equal": true,
+  "generations": {
+    "first": 1,
+    "second": 2,
+    "second_previous": 1,
+    "epoch": 2,
+    "journal_sequence_first": 1,
+    "journal_sequence_second": 2
+  },
+  "measurements_bytes": {
+    "node": 359068,
+    "ldk": 84164,
+    "rgb_named_files": 154848,
+    "luma_rgb_journal": 1582,
+    "capsule_generation_1": 202802,
+    "capsule_generation_2": 222333
+  },
+  "restore_seconds": 0.015669247979531065,
+  "corruption_matrix": [
+    "missing_manager: CORRUPT",
+    "missing_monitor: CORRUPT",
+    "missing_monitor_update: CORRUPT",
+    "missing_rgb_db: CORRUPT",
+    "missing_journal: CORRUPT",
+    "corrupt_manifest: CORRUPT",
+    "wrong_hash: CORRUPT",
+    "missing_committed: INCOMPLETE",
+    "extra_file: CORRUPT",
+    "skew_old_journal: CORRUPT",
+    "skew_old_node: CORRUPT",
+    "skew_new_journal_into_old: CORRUPT"
+  ],
+  "post_restore_payment": {
+    "status": "Settled",
+    "rgb_outbound_delta": 5,
+    "journal_sequence": 2,
+    "payment_count": 2
+  },
+  "counts": {
+    "channels": 1,
+    "rgb_assets": 1,
+    "settled_payments": 2
+  },
+  "timings_seconds": {
+    "snapshot_generation_1": 0.031774108996614814,
+    "snapshot_generation_2": 0.03997983399312943,
+    "restore_generation_1": 0.015669247979531065,
+    "restore_generation_2": 0.023510981001891196,
+    "reconciliation_generation_2": 17.356767099001445
+  },
+  "transfer_artifacts_bytes": 13071,
+  "uncertain_submission": "BLOCKED \u2014 no safe submission-boundary hook",
+  "invariants": {
+    "active_channel_usable_after_restore": true,
+    "duplicate_rejected_without_journal_advance": true,
+    "stale_generation_rejected": true,
+    "second_writer_rejected": true,
+    "explicit_takeover_incremented_epoch": true,
+    "old_writer_snapshot_rejected": true,
+    "forbidden_files_in_capsule": 0
+  }
+}

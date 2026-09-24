@@ -2,7 +2,7 @@ Command:
   python3 -m unittest tools/capsule/test_capsule.py
 
 Result:
-  Ran 6 tests in 0.104s
+  Ran 7 tests
   OK
 
 Covered:
@@ -16,6 +16,7 @@ Covered:
   - forbidden log refusal
   - missing disposable marker refusal
   - Alice/Bob/Carol wallet and path refusal
+  - undeclared root-level capsule file refusal
 
 Compatibility checks:
   cargo fmt --all -- --check
