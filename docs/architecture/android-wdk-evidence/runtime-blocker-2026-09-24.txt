@@ -1,0 +1,40 @@
+Android WDK/UTEXO compatibility spike — redacted runtime evidence
+Date: 2026-09-24
+Runtime: Android API 36 x86_64 emulator
+Physical device: none attached
+Secrets/mnemonics/payment material: none created
+
+Selected run:
+  @utexo/wdk-rgb-lightning 0.1.0-beta.15
+  @utexo/rgb-lightning-node-bare 0.1.0-beta.15
+  @tetherto/wdk-react-native-core 1.0.0-beta.21
+  @tetherto/wdk-worklet-bundler 1.0.0-beta.14
+  react-native-bare-kit 0.15.5
+  Android-only bare-pack host: android-x64
+
+Build:
+  BUILD SUCCESSFUL
+  509 actionable tasks
+  APK SHA-256: 46e7730e9655786fc409de32e1ca090e3b719073311e039652b8bd0d857b65ab
+
+Packaging checks:
+  APK contains lib/x86_64/libbare-channel.5.3.0.so
+  Worklet manifest resolves bare-channel binding to:
+    linked:libbare-channel.5.3.0.so
+
+Focused log:
+  09-24 18:52:56.262 ReactNativeJS: Running "main"
+  09-24 18:52:58.442 wdkcapsulespike: Uncaught (in promise)
+    ModuleTraverseError: ADDON_NOT_FOUND: Cannot find addon '.' imported from
+    file:///wdk-worklet.bundle/node_modules/bare-channel/binding.js
+  09-24 18:52:58.442 libc: Fatal signal 6 (SIGABRT) in bare-worklet
+
+Control:
+  react-native-bare-kit 0.14.5 (the WDK Core beta.21 declared minimum)
+  also built successfully, then failed during addon resolution:
+    AddonError: ADDON_NOT_FOUND ... bare-type/binding.js
+
+Result:
+  BLOCKED before WDK initialization and before wallet creation.
+  BTC, RGB, channel, payment, restart, restore, VSS, fencing, and lifecycle
+  claims were not attempted and are not inferred from the successful APK build.

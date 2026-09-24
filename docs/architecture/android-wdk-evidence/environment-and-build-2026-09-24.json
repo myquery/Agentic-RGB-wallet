@@ -1,0 +1,69 @@
+{
+  "captured_at": "2026-09-24",
+  "scope": "isolated Android WDK/UTEXO compatibility spike",
+  "secrets_or_wallet_material": "none created or recorded",
+  "source_baseline": "3c9d24a",
+  "selected_stack": {
+    "node": "22.22.3",
+    "java": "OpenJDK 21.0.11",
+    "expo": "54.0.33",
+    "react_native": "0.81.5",
+    "wdk": "1.0.0-beta.14",
+    "wdk_react_native_core": "1.0.0-beta.21",
+    "wdk_worklet_bundler": "1.0.0-beta.14",
+    "wdk_rgb_lightning": "0.1.0-beta.15",
+    "rgb_lightning_node_bare": "0.1.0-beta.15",
+    "react_native_bare_kit": "0.15.5",
+    "expo_crypto": "15.0.8",
+    "react_native_mmkv": "4.3.1",
+    "react_native_nitro_modules": "0.35.0"
+  },
+  "source_revisions": {
+    "wdk_rgb_lightning_tag_commit": "4883283fb00a98db0251d5697a9eaa6edb870bb9",
+    "rgb_lightning_node_bare_tag_commit": "f6c56cbf66a212d22ca7f8c2e4e4b03126a7061d",
+    "embedded_rgb_lightning_node_tag": "v0.10.0-beta.3",
+    "embedded_rgb_lightning_node_commit": "0bfa66fa256a6c36f3737d5b6402eacea40c68fc"
+  },
+  "android": {
+    "emulator": "35.5.10.0 build 13402964",
+    "runtime_api": 36,
+    "runtime_abi": "x86_64",
+    "min_sdk": 29,
+    "compile_sdk": 35,
+    "target_sdk": 35,
+    "ndk": "27.1.12297006",
+    "new_architecture": true,
+    "hermes": true,
+    "physical_device_available": false
+  },
+  "artifacts": {
+    "release_apk_bytes": 477444058,
+    "release_apk_sha256": "46e7730e9655786fc409de32e1ca090e3b719073311e039652b8bd0d857b65ab",
+    "android_x64_native_bare_bytes": 158991120,
+    "android_x64_native_bare_sha256": "2e8c740bf4402da30739d97ab30bd8cded737284ee60b5fbde7e8503757cb200",
+    "android_only_wdk_bundle_bytes": 3355133,
+    "android_only_wdk_bundle_sha256": "8de63ea1e151c94078a2969bc44b3f0530f79ff7895e0ff51e32210d47df018d"
+  },
+  "build": {
+    "result": "PASS",
+    "gradle_task": "assembleRelease",
+    "tasks": "509 actionable",
+    "typecheck": "PASS"
+  },
+  "runtime": {
+    "activity_launch": "PASS",
+    "react_native_main": "PASS",
+    "bare_worklet": "FAIL",
+    "time_from_react_main_to_abort_ms": 2180,
+    "failure": "ADDON_NOT_FOUND resolving bare-channel from the packed WDK worklet",
+    "native_library_present_in_apk": true,
+    "bundle_resolution": "linked:libbare-channel.5.3.0.so"
+  },
+  "regressions": {
+    "capsule_tests": "7 passed",
+    "cargo_fmt": "PASS",
+    "cargo_check_workspace": "PASS",
+    "cargo_clippy_workspace_all_targets_deny_warnings": "PASS",
+    "cargo_test_workspace": "154 passed"
+  }
+}

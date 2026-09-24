@@ -1,0 +1,10 @@
+node_modules/
+.expo/
+.wdk/
+.wdk-bundle/
+android/
+ios/
+*.tsbuildinfo
+.env
+evidence-private/
+android-addons/

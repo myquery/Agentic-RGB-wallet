@@ -1,0 +1,42 @@
+{
+  "name": "luma-android-wdk-capsule-spike",
+  "version": "0.0.1",
+  "private": true,
+  "main": "index.ts",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "bundle:wdk": "wdk-worklet-bundler generate --install",
+    "prebuild": "expo prebuild --no-install",
+    "android:release": "expo run:android --variant release",
+    "typecheck": "tsc --noEmit",
+    "android": "expo run:android",
+    "ios": "expo run:ios"
+  },
+  "dependencies": {
+    "@tetherto/wdk": "1.0.0-beta.14",
+    "@tetherto/wdk-react-native-core": "1.0.0-beta.21",
+    "@tetherto/wdk-secret-manager": "1.0.0-beta.3",
+    "@tetherto/wdk-wallet": "1.0.0-beta.14",
+    "@utexo/rgb-lightning-node-bare": "0.1.0-beta.15",
+    "@utexo/wdk-rgb-lightning": "0.1.0-beta.15",
+    "expo": "54.0.33",
+    "expo-build-properties": "1.0.10",
+    "expo-clipboard": "8.0.8",
+    "expo-crypto": "15.0.8",
+    "expo-file-system": "19.0.21",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-bare-kit": "0.15.5",
+    "react-native-get-random-values": "1.11.0",
+    "react-native-mmkv": "4.3.1",
+    "react-native-nitro-modules": "0.35.0",
+    "react-native-safe-area-context": "5.6.0"
+  },
+  "devDependencies": {
+    "@tetherto/wdk-worklet-bundler": "1.0.0-beta.14",
+    "@types/react": "19.1.0",
+    "typescript": "5.9.2"
+  }
+}

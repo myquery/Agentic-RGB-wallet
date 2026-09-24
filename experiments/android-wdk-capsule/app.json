@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "Luma WDK Capsule Spike",
+    "slug": "luma-wdk-capsule-spike",
+    "version": "0.0.1",
+    "orientation": "portrait",
+    "newArchEnabled": true,
+    "android": {
+      "package": "org.bitshala.luma.wdkcapsulespike",
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 29,
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "ndkVersion": "27.1.12297006",
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
+    ]
+  }
+}
