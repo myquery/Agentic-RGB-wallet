@@ -7,14 +7,11 @@ launcher pins RGB-Tools/rgb-lightning-node at commit
 
 ## How the application is wired
 
-Judges do not need generated `.dev` or `.var` directories. The tracked
-[`regtest.py`](../scripts/regtest/regtest.py) script clones the exact upstream
-node revision, builds its runtime, and provisions Bitcoin Core, Electrs, the RGB
-proxy, and independent Alice/Bob/Carol nodes. Generated binaries and cloned
-source live in `.dev`; local mnemonics, channel state, payment journals,
-invoices, configuration, and logs live in `.var`. Both are deliberately omitted
-from Git because they are reproducible, very large, and contain private wallet
-state.
+The tracked [`regtest.py`](../scripts/regtest/regtest.py) script clones the exact
+upstream node revision, builds its runtime, and provisions Bitcoin Core,
+Electrs, the RGB proxy, and independent Alice/Bob/Carol nodes. Runtime artifacts
+and wallet state are generated locally from this reproducible setup and remain
+outside version control.
 
 The tracked integration points show the complete boundary:
 
