@@ -44,3 +44,9 @@ __pycache__/
 !/docs/acceptance/pwa-approval.png
 !/docs/acceptance/pwa-rgb-lightning-payment.json
 !/docs/acceptance/rgb-lightning-payment.json
+!/docs/architecture/
+/docs/architecture/*
+!/docs/architecture/capsule-recovery-demo.md
+!/docs/architecture/capsule-recovery-evidence/
+/docs/architecture/capsule-recovery-evidence/*
+!/docs/architecture/capsule-recovery-evidence/synthetic-tests-2026-09-24.txt
