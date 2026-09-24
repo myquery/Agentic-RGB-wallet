@@ -3,21 +3,23 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from tools.capsule.capsule import CapsuleError, Registry, restore, snapshot, validate
+from tools.capsule.capsule import CapsuleError, Registry, initialize_fixture, restore, snapshot, validate
 
 
 class CapsuleTest(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         root = Path(self.temp.name)
-        self.repo = root / "capsules"
-        self.source = root / "source"
+        self.fixture = root / "capsule-test-fixture"
+        initialize_fixture(self.fixture)
+        self.repo = self.fixture / "capsules"
+        self.source = self.fixture / "source"
         (self.source / "node/ldk/monitors").mkdir(parents=True)
         (self.source / "node/ldk/manager").write_text("manager-v1")
         (self.source / "node/ldk/monitors/channel").write_text("monitor-v1")
         (self.source / "rgb.jsonl").write_text('{"payment":"settled"}\n')
         (self.source / "btc.jsonl").write_text('{"payment":"reserved"}\n')
-        self.spec = root / "spec.json"
+        self.spec = self.fixture / "spec.json"
         self.spec.write_text(json.dumps({
             "wallet_id": "disposable-wallet", "wallet_fingerprint": "fingerprint-hash",
             "node_id": "node-id-hash", "network": "regtest",
@@ -37,7 +39,7 @@ class CapsuleTest(unittest.TestCase):
         manifest = validate(self.repo, generation)
         self.assertEqual(manifest["generation"], 1)
         self.assertEqual(manifest["components"]["rgb_journal"]["journal_sequence"], 1)
-        target = Path(self.temp.name) / "restored"
+        target = self.fixture / "restored"
         restore(self.repo, generation, target, "writer-a", self.epoch)
         self.assertEqual((target / "node/ldk/manager").read_text(), "manager-v1")
 
@@ -69,6 +71,15 @@ class CapsuleTest(unittest.TestCase):
         (self.source / "node/debug.log").write_text("private diagnostic")
         with self.assertRaisesRegex(CapsuleError, "forbidden"):
             snapshot(self.repo, self.spec, "writer-a", self.epoch)
+
+    def test_unmarked_and_live_fixtures_refused(self):
+        root = Path(self.temp.name)
+        with self.assertRaisesRegex(CapsuleError, "NOT_DISPOSABLE"):
+            Registry(root / "unmarked/capsules")
+        with self.assertRaisesRegex(CapsuleError, "LIVE_FIXTURE"):
+            self.registry.acquire("alice", "writer-a")
+        with self.assertRaisesRegex(CapsuleError, "LIVE_FIXTURE"):
+            restore(self.repo, self.repo / "missing", root / "alice", "writer-a", self.epoch)
 
 
 if __name__ == "__main__": unittest.main()

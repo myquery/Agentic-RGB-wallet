@@ -2,7 +2,7 @@ Command:
   python3 -m unittest tools/capsule/test_capsule.py
 
 Result:
-  Ran 5 tests in 0.079s
+  Ran 6 tests in 0.104s
   OK
 
 Covered:
@@ -14,6 +14,22 @@ Covered:
   - component hash corruption refusal
   - missing COMMITTED marker refusal
   - forbidden log refusal
+  - missing disposable marker refusal
+  - Alice/Bob/Carol wallet and path refusal
+
+Compatibility checks:
+  cargo fmt --all -- --check
+    PASS
+  cargo check --workspace
+    PASS
+  cargo clippy --workspace --all-targets -- -D warnings
+    PASS
+  cargo test --workspace
+    PASS: 154 passed, 0 failed
+
+The first sandboxed cargo test attempt denied five loopback listener creations
+with OS error 1. The unchanged suite was rerun with loopback permission and all
+tests passed. No frontend file was changed, so frontend tests were not rerun.
 
 No live wallet path, identifier, credential, invoice, seed, password, token,
 preimage, private key, or peer address was captured.

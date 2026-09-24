@@ -3,6 +3,29 @@
 Status: **PARTIALLY PROVEN**. Date: 2026-09-24. This demonstrator did not read,
 stop, copy, or modify the funded Alice/Bob/Carol environment.
 
+## Existing happy-path impact
+
+**Existing happy path: UNCHANGED. Capsule demonstrator: additive and isolated.**
+
+No file under `apps/`, `crates/`, the existing regtest scripts, node storage,
+wallet startup, payment APIs, configuration, or journal formats changed. Normal
+startup does not load this tool and has no capsule, generation, lease, epoch,
+snapshot, or restore dependency. A source diff from the pre-constraint
+demonstrator commit confirms the existing application source tree is identical.
+
+The control flow remains:
+
+```text
+prepare → durable reservation → human/application approval
+        → execute exactly once → settlement/reconciliation
+```
+
+The post-change regression run passed formatting, workspace compilation,
+Clippy with warnings denied, and all 154 Rust tests. An initial sandboxed test
+run denied five loopback listener creations; rerunning the unchanged suite with
+loopback permission passed all five and the entire workspace. The frontend was
+not touched. The six capsule-only Python tests also pass.
+
 ## 1. Objective
 
 Prove the local safety machinery required to treat node state and Luma journals
@@ -15,6 +38,13 @@ The automated fixture uses temporary directories containing synthetic manager,
 monitor, RGB-journal, and BTC-journal objects. **PROVEN:** destructive tests are
 isolated from `.var/regtest`. **NOT PROVEN:** a funded node topology has not yet
 been executed.
+
+Every operation requires a `.luma-capsule-disposable` marker created only in an
+empty directory whose name contains `capsule-test`. Repository, spec, sources,
+generation, and restore target must share that marked root. Alice, Bob, and
+Carol path components and wallet IDs are rejected in code. The normal
+`.var/regtest` tree is rejected unless the path is under the dedicated
+`.var/regtest/capsule-test/` namespace.
 
 ## 3. Capsule Manifest v1
 
@@ -133,6 +163,7 @@ real LDK/RGB size measurements await the disposable funded fixture.
 - A second owner cannot acquire without explicit takeover.
 - Takeover increments epoch and invalidates the old writer at the kernel edge.
 - Restore uses a partial target and rechecks writer ownership.
+- Unmarked, live-wallet-named, and cross-fixture paths are rejected before use.
 
 ## 18. Failed or blocked invariants
 

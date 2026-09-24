@@ -15,10 +15,44 @@ from datetime import datetime, timezone
 SCHEMA_VERSION = 1
 CLASSES = {"AUTHORITY", "SAFETY-CRITICAL", "APPLICATION-JOURNAL", "RECOVERY-METADATA"}
 FORBIDDEN_PARTS = {"logs", "log", "conversation", "sessions"}
+RESERVED_WALLETS = {"alice", "bob", "carol"}
+DISPOSABLE_MARKER = ".luma-capsule-disposable"
 
 
 class CapsuleError(RuntimeError):
     pass
+
+
+def reject_live_or_reserved(path: Path) -> Path:
+    resolved = path.resolve()
+    lowered = tuple(part.lower() for part in resolved.parts)
+    if any(part in RESERVED_WALLETS for part in lowered):
+        raise CapsuleError("LIVE_FIXTURE: alice/bob/carol paths are forbidden")
+    rendered = resolved.as_posix().lower()
+    if "/.var/regtest" in rendered and "/.var/regtest/capsule-test/" not in rendered + "/":
+        raise CapsuleError("LIVE_FIXTURE: normal .var/regtest paths are forbidden")
+    return resolved
+
+
+def disposable_root(path: Path) -> Path:
+    resolved = reject_live_or_reserved(path)
+    candidate = resolved if resolved.is_dir() else resolved.parent
+    for parent in (candidate, *candidate.parents):
+        if (parent / DISPOSABLE_MARKER).is_file():
+            return parent
+    raise CapsuleError(f"NOT_DISPOSABLE: missing {DISPOSABLE_MARKER} marker")
+
+
+def initialize_fixture(path: Path) -> Path:
+    resolved = reject_live_or_reserved(path)
+    if "capsule-test" not in resolved.name.lower():
+        raise CapsuleError("NOT_DISPOSABLE: fixture directory name must contain capsule-test")
+    if resolved.exists() and any(resolved.iterdir()):
+        raise CapsuleError("NOT_DISPOSABLE: fixture directory must be absent or empty")
+    resolved.mkdir(parents=True, exist_ok=True)
+    marker = resolved / DISPOSABLE_MARKER
+    marker.write_text("disposable capsule recovery fixture\n")
+    return marker
 
 
 def atomic_json(path: Path, value: dict) -> None:
@@ -59,6 +93,7 @@ def safe_relative(value: str) -> PurePosixPath:
 
 
 def load_spec(path: Path) -> dict:
+    fixture = disposable_root(path)
     spec = json.loads(path.read_text())
     required = {"wallet_id", "wallet_fingerprint", "node_id", "network", "implementation", "components"}
     missing = required - spec.keys()
@@ -66,6 +101,8 @@ def load_spec(path: Path) -> dict:
         raise CapsuleError(f"spec missing: {', '.join(sorted(missing))}")
     if not isinstance(spec["components"], list) or not spec["components"]:
         raise CapsuleError("spec requires a non-empty components allowlist")
+    if spec["wallet_id"].lower() in RESERVED_WALLETS:
+        raise CapsuleError("LIVE_FIXTURE: alice/bob/carol wallet IDs are forbidden")
     names = set()
     destinations = set()
     for item in spec["components"]:
@@ -80,6 +117,8 @@ def load_spec(path: Path) -> dict:
         names.add(name)
         destinations.add(destination)
         source = Path(item["source"])
+        if disposable_root(source) != fixture:
+            raise CapsuleError(f"component outside disposable fixture: {name}")
         if not source.exists() or source.is_symlink():
             raise CapsuleError(f"component source unavailable or symlinked: {name}")
     return spec
@@ -87,7 +126,8 @@ def load_spec(path: Path) -> dict:
 
 class Registry:
     def __init__(self, root: Path):
-        self.root = root
+        self.root = reject_live_or_reserved(root)
+        disposable_root(self.root)
         self.path = root / "registry.json"
         self.lock_path = root / "registry.lock"
 
@@ -104,6 +144,8 @@ class Registry:
         return json.loads(self.path.read_text()) if self.path.exists() else {"wallets": {}}
 
     def acquire(self, wallet: str, owner: str, takeover: bool = False) -> int:
+        if wallet.lower() in RESERVED_WALLETS:
+            raise CapsuleError("LIVE_FIXTURE: alice/bob/carol wallet IDs are forbidden")
         def op(state):
             current = state["wallets"].get(wallet)
             if current and current["owner"] != owner and not takeover:
@@ -145,6 +187,8 @@ def component_sequence(source: Path, journal: bool) -> int | None:
 
 
 def snapshot(repo: Path, spec_path: Path, owner: str, epoch: int) -> Path:
+    if disposable_root(repo) != disposable_root(spec_path):
+        raise CapsuleError("repository and spec must share one disposable fixture")
     spec = load_spec(spec_path)
     wallet = spec["wallet_id"]
     registry = Registry(repo)
@@ -204,6 +248,8 @@ def snapshot(repo: Path, spec_path: Path, owner: str, epoch: int) -> Path:
 
 
 def validate(repo: Path, generation_dir: Path, allow_stale: bool = False) -> dict:
+    if disposable_root(repo) != disposable_root(generation_dir):
+        raise CapsuleError("repository and generation must share one disposable fixture")
     if not (generation_dir / "COMMITTED").is_file():
         raise CapsuleError("INCOMPLETE: missing COMMITTED marker")
     try:
@@ -237,6 +283,15 @@ def validate(repo: Path, generation_dir: Path, allow_stale: bool = False) -> dic
 
 
 def restore(repo: Path, generation_dir: Path, target: Path, owner: str, epoch: int) -> None:
+    fixture = disposable_root(repo)
+    if disposable_root(generation_dir) != fixture:
+        raise CapsuleError("generation is outside disposable fixture")
+    target = reject_live_or_reserved(target)
+    if target.exists():
+        if disposable_root(target) != fixture:
+            raise CapsuleError("restore target is outside disposable fixture")
+    elif disposable_root(target.parent) != fixture:
+        raise CapsuleError("restore target is outside disposable fixture")
     manifest = validate(repo, generation_dir)
     Registry(repo).assert_writer(manifest["wallet_id"], owner, epoch)
     if target.exists() and any(target.iterdir()):
@@ -250,8 +305,10 @@ def restore(repo: Path, generation_dir: Path, target: Path, owner: str, epoch: i
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--repo", type=Path, required=True)
+    parser.add_argument("--repo", type=Path)
     sub = parser.add_subparsers(dest="command", required=True)
+    initialize = sub.add_parser("init-fixture")
+    initialize.add_argument("target", type=Path)
     acquire = sub.add_parser("acquire")
     acquire.add_argument("--wallet", required=True); acquire.add_argument("--owner", required=True)
     acquire.add_argument("--takeover", action="store_true")
@@ -263,7 +320,11 @@ def main() -> None:
     recover.add_argument("--owner", required=True); recover.add_argument("--epoch", type=int, required=True)
     args = parser.parse_args()
     try:
-        if args.command == "acquire":
+        if args.command == "init-fixture":
+            print(initialize_fixture(args.target))
+        elif args.repo is None:
+            raise CapsuleError("--repo is required for this command")
+        elif args.command == "acquire":
             print(Registry(args.repo).acquire(args.wallet, args.owner, args.takeover))
         elif args.command == "snapshot":
             print(snapshot(args.repo, args.spec, args.owner, args.epoch))
