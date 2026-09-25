@@ -1,0 +1,16 @@
+[Unit]
+Description=RGB402 recipient discovery and commerce proxy
+After=network-online.target rgb402-wallet@alice.service rgb402-wallet@bob.service rgb402-wallet@carol.service
+Wants=network-online.target rgb402-wallet@alice.service rgb402-wallet@bob.service rgb402-wallet@carol.service
+
+[Service]
+Type=simple
+WorkingDirectory=%h/apps/bitshala/BOSS-hackathon
+ExecStart=%h/apps/bitshala/BOSS-hackathon/scripts/wallet/recipient.sh
+Restart=on-failure
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+[Install]
+WantedBy=default.target

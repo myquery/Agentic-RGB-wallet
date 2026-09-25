@@ -35,6 +35,13 @@ if [[ -z "${RECIPIENT_DOMAIN:-}" && -f .var/regtest/recipient-domain ]]; then
 fi
 if [[ -n "${RECIPIENT_DOMAIN:-}" ]]; then
   export WALLET_RECIPIENT_ADDRESS="$role@$RECIPIENT_DOMAIN"
+  merchant_generation="$(printf '%s' "$RECIPIENT_DOMAIN" | sha256sum | cut -c1-12)"
+  if [[ "$role" == carol ]]; then
+    merchant_prefix=carol-orders
+  else
+    merchant_prefix="$role-merchant-orders"
+  fi
+  export MERCHANT_STATE_PATH="$PWD/.var/regtest/${merchant_prefix}-${merchant_generation}.jsonl"
 else
   unset MERCHANT_BIND
 fi

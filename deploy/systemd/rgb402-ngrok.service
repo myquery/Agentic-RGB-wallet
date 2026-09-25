@@ -1,0 +1,16 @@
+[Unit]
+Description=RGB402 public recipient tunnel
+After=network-online.target rgb402-recipient.service
+Wants=network-online.target rgb402-recipient.service
+
+[Service]
+Type=simple
+WorkingDirectory=%h/apps/bitshala/BOSS-hackathon
+ExecStart=%h/apps/bitshala/BOSS-hackathon/scripts/wallet/ngrok.sh
+Restart=on-failure
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+[Install]
+WantedBy=default.target
