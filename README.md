@@ -229,18 +229,16 @@ to release the wallet lock and exit.
 `AGENT_MODEL` can select a compatible Chat Completions model with function calling. The current default is:
 
 ```text
-gpt-4.1-mini
+gpt-5.6-terra
 ```
 
-The agent loads missing settings from `.env.example` in the current directory. Exported environment variables take precedence, including over empty example values.
-
-It does **not** load `.env`.
+The agent loads missing settings from the ignored `.env` file, then `.env.example`. Exported environment variables take precedence, followed by `.env`, then `.env.example`.
 
 Startup fails if the OpenAI API key is missing or empty.
 
 Keep the key out of:
 
-* repository files
+* committed files
 * transcripts
 * logs
 

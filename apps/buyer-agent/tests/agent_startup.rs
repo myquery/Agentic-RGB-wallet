@@ -44,7 +44,9 @@ fn help_is_offline_and_does_not_require_credentials() {
     let fixture = Fixture::new();
     let output = fixture.command().arg("--help").output().unwrap();
     assert!(output.status.success());
-    assert!(String::from_utf8(output.stdout).unwrap().contains("[y/N]"));
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(stdout.contains("[y/N]"));
+    assert!(stdout.contains("default gpt-5.6-terra"));
 }
 #[test]
 fn example_supplies_missing_wallet_settings_and_empty_key_does_not_override_export() {
@@ -66,6 +68,21 @@ fn example_supplies_missing_wallet_settings_and_empty_key_does_not_override_expo
         .contains("RGB402 Agent"));
     // The path persists, but its kernel-held lock is released when the process exits.
     assert!(fixture.0.join(".wallet-state.lock").exists());
+}
+#[test]
+fn ignored_env_supplies_key_and_precedes_example() {
+    let fixture = Fixture::new();
+    fixture.defaults();
+    std::fs::write(
+        fixture.0.join(".env"),
+        "OPENAI_API_KEY=not-a-credential\nMAX_SINGLE_PAYMENT=0\n",
+    )
+    .unwrap();
+    let output = fixture.command().output().unwrap();
+    assert!(!output.status.success());
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(!stderr.contains("OPENAI_API_KEY is required"));
+    assert!(stderr.contains("require 0 < single <= daily"));
 }
 #[test]
 fn exported_setting_wins_over_example() {

@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 const ENDPOINT: &str = "https://api.openai.com/v1/chat/completions";
-pub const DEFAULT_MODEL: &str = "gpt-4.1-mini";
+pub const DEFAULT_MODEL: &str = "gpt-5.6-terra";
 const MAX_RESPONSE_BYTES: usize = 256 * 1024;
 
 // No Debug or Serialize: the HTTP client holds a sensitive authorization header.

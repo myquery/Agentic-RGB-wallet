@@ -51,6 +51,7 @@ fn request_preserves_roles_call_ids_results_and_strict_boundaries() {
     let definitions = tool_definitions();
     let value =
         serde_json::to_value(request(DEFAULT_MODEL, &history, &definitions).unwrap()).unwrap();
+    assert_eq!(value["model"], "gpt-5.6-terra");
     assert_eq!(value["messages"][0]["role"], "system");
     assert_eq!(value["messages"][1]["role"], "user");
     assert_eq!(value["messages"][2]["tool_calls"][0]["id"], "call_1");

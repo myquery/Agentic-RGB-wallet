@@ -80,14 +80,16 @@ node failure and pending/failed/settled status.
 `wallet_agent/openai.rs` implements `AgentModel` using the existing `reqwest`
 dependency and `https://api.openai.com/v1/chat/completions`. No SDK is required.
 The provider reads `OPENAI_API_KEY` from the process environment. Before runtime
-startup, the CLI loads missing settings from `.env.example` in the current
-directory, preserving every explicitly exported value. Missing/blank keys
-fail before the CLI opens the wallet or contacts a node. No credentials are
-created, provisioned or written to disk. The provider has no Debug/Serialize
+startup, the CLI loads missing settings from the ignored `.env` file and then
+`.env.example`, preserving every explicitly exported value. The priority is
+exported environment, `.env`, then `.env.example`. Missing/blank keys
+fail before the CLI opens the wallet or contacts a node. The application never
+creates, provisions, or writes credentials; an operator may store the key in the
+ignored `.env` file. The provider has no Debug/Serialize
 implementation; the authorization header is marked sensitive and never becomes
 part of a prompt, tool result or audit event.
 
-`AGENT_MODEL` defaults to `gpt-4.1-mini`. The selected model must support Chat
+`AGENT_MODEL` defaults to `gpt-5.6-terra`. The selected model must support Chat
 Completions function calling. Requests set `strict: true`,
 `parallel_tool_calls: false`, `store: false`, and a 2,048 completion-token limit.
 The provider uses typed message, call and response DTOs. Truncated, refused,
@@ -100,7 +102,7 @@ Errors expose a category or HTTP status, never a remote body or credential.
 
 API mapping follows the official [function-calling guide](https://developers.openai.com/api/docs/guides/function-calling)
 and [Chat API reference](https://developers.openai.com/api/reference/cli/resources/chat).
-The [default model documentation](https://developers.openai.com/api/docs/models/gpt-4.1-mini)
+The [default model documentation](https://developers.openai.com/api/docs/models/gpt-5.6-terra)
 describes its supported endpoints and capabilities; account access is checked
 only by the eventual live request.
 
@@ -124,12 +126,13 @@ set +a
 cargo run -p buyer-agent --bin agent
 ```
 
-The binary reads `.env.example` as fallback configuration automatically; it does
-not read `.env`. Exported settings win, so an empty example key cannot overwrite
-your exported key. The example loader accepts literal `NAME=value` assignments,
-optional single/double quotes and comments; it does not execute shell expressions
-or expand variables. It loads only known wallet/model settings. With the required
-settings present in that file and your key exported, run the cargo command directly.
+The binary reads ignored `.env` and then `.env.example` as fallback
+configuration automatically. Exported settings win, followed by `.env`, so an
+empty example key cannot overwrite your configured key. The loader accepts
+literal `NAME=value` assignments, optional single/double quotes and comments; it
+does not execute shell expressions or expand variables. It loads only known
+wallet/model settings. With the key in `.env` and the remaining settings exported
+or present in the fallback files, run the cargo command directly.
 For the managed regtest stack, source `wallet.env` as above to override example
 node/asset placeholders with the actual setup. Use the same durable wallet journal as
 Milestone 1. Exit with `/quit`; as with the wallet CLI, forced termination can

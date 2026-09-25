@@ -25,7 +25,7 @@ pub fn load_defaults(path: &Path) -> io::Result<()> {
     let contents = match fs::read_to_string(path) {
         Ok(contents) => contents,
         Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(()),
-        Err(_) => return Err(io::Error::other("could not read .env.example")),
+        Err(_) => return Err(io::Error::other("could not read local environment file")),
     };
     let defaults = parse(&contents)?;
     for (name, value) in defaults {
@@ -47,7 +47,7 @@ fn parse(contents: &str) -> io::Result<HashMap<String, String>> {
         let invalid = || {
             io::Error::new(
                 io::ErrorKind::InvalidData,
-                format!("invalid .env.example assignment on line {}", index + 1),
+                format!("invalid environment assignment on line {}", index + 1),
             )
         };
         let (name, value) = line.split_once('=').ok_or_else(invalid)?;

@@ -31,9 +31,9 @@ and web API: exit other wallet processes before starting the API. Ctrl-C shuts
 it down gracefully; do not delete a journal or a live process's lock to retry.
 
 The existing `OPENAI_API_KEY` and optional `AGENT_MODEL` remain server-side. The
-API uses the same fallback `.env.example` loader as the CLI; exported variables
-win. Keep all credentials out of the frontend and its environment. Do not put
-secrets in examples, documentation, screenshots or acceptance artifacts.
+API uses the same ignored `.env` then `.env.example` fallback loader as the CLI;
+exported variables win. Keep all credentials out of the frontend and its environment.
+Do not put secrets in examples, documentation, screenshots or acceptance artifacts.
 
 For frontend development, keep the API running and in another terminal run:
 

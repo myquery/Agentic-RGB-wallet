@@ -109,7 +109,7 @@ The launcher acquires exclusive state locks; a duplicate process must fail.
    The launchers load `.var/regtest/wallet.env` and select independent node URLs,
    journal paths and wallet names. Do not run a CLI holding those same journals.
    No secret belongs in an example file or browser configuration. Optional
-   `AGENT_MODEL` selects the provider model; current default is gpt-4.1-mini.
+   `AGENT_MODEL` selects the provider model; current default is gpt-5.6-terra.
 
 8. PWA is served by those APIs; no separate Vite service is needed:
    Alice http://127.0.0.1:3030 and Bob http://127.0.0.1:3031. Refresh after builds.

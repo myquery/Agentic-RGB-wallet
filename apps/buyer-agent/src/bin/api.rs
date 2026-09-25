@@ -14,6 +14,7 @@ fn main() {
     }
 }
 fn launch() -> Result<(), Box<dyn std::error::Error>> {
+    agent_config::load_defaults(std::path::Path::new(".env"))?;
     agent_config::load_defaults(std::path::Path::new(".env.example"))?;
     tokio::runtime::Runtime::new()?.block_on(start())
 }

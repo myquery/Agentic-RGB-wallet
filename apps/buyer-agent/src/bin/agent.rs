@@ -8,7 +8,7 @@ use std::{
     sync::Arc,
 };
 
-const HELP: &str = "RGB402 Agent — demo regtest RGB wallet\nUsage: cargo run -p buyer-agent --bin agent\nRequired: OPENAI_API_KEY and existing wallet environment configuration.\nOptional: AGENT_MODEL (default gpt-4.1-mini). .env.example in the current directory supplies missing settings; exported variables win.\nAsk about assets, balances, an invoice, or a payment. Paste the invoice on the same line.\nEvery payment pauses at an application-owned [y/N] prompt.\nType /quit to exit. Maximum eight tool/model steps per turn.";
+const HELP: &str = "RGB402 Agent — demo regtest RGB wallet\nUsage: cargo run -p buyer-agent --bin agent\nRequired: OPENAI_API_KEY and existing wallet environment configuration.\nOptional: AGENT_MODEL (default gpt-5.6-terra). The ignored .env and then .env.example supply missing settings; exported variables win.\nAsk about assets, balances, an invoice, or a payment. Paste the invoice on the same line.\nEvery payment pauses at an application-owned [y/N] prompt.\nType /quit to exit. Maximum eight tool/model steps per turn.";
 
 fn main() {
     if let Err(error) = launch() {
@@ -26,6 +26,7 @@ fn launch() -> Result<(), Box<dyn std::error::Error>> {
         return Err("unknown argument; use --help".into());
     }
     // Set fallback environment before any runtime worker threads exist.
+    agent_config::load_defaults(std::path::Path::new(".env"))?;
     agent_config::load_defaults(std::path::Path::new(".env.example"))?;
     tokio::runtime::Runtime::new()?.block_on(start())
 }
