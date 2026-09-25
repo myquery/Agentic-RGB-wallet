@@ -90,8 +90,10 @@ implementation; the authorization header is marked sensitive and never becomes
 part of a prompt, tool result or audit event.
 
 `AGENT_MODEL` defaults to `gpt-5.6-terra`. The selected model must support Chat
-Completions function calling. Requests set `strict: true`,
-`parallel_tool_calls: false`, `store: false`, and a 2,048 completion-token limit.
+Completions function calling. Terra requests set `reasoning_effort: "none"`, as
+required by Chat Completions when function tools are present. All requests set
+`strict: true`, `parallel_tool_calls: false`, `store: false`, and a 2,048
+completion-token limit.
 The provider uses typed message, call and response DTOs. Truncated, refused,
 malformed or multiple-call responses are rejected. Unknown tools and malformed
 arguments still reach the model-independent dispatcher's structured errors.

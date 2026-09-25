@@ -61,7 +61,11 @@ fn request_preserves_roles_call_ids_results_and_strict_boundaries() {
         json!({"type":"assets","assets":[]})
     );
     assert_eq!(value["parallel_tool_calls"], false);
+    assert_eq!(value["reasoning_effort"], "none");
     assert_eq!(value["store"], false);
+    let legacy =
+        serde_json::to_value(request("gpt-4.1-mini", &history, &definitions).unwrap()).unwrap();
+    assert!(legacy.get("reasoning_effort").is_none());
     assert_eq!(value["tools"].as_array().unwrap().len(), 8);
     for tool in value["tools"].as_array().unwrap() {
         assert_eq!(tool["function"]["strict"], true);

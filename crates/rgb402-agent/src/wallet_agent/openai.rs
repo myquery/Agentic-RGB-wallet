@@ -65,6 +65,8 @@ struct Request<'a> {
     tools: Vec<FunctionTool<'a>>,
     tool_choice: &'static str,
     parallel_tool_calls: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reasoning_effort: Option<&'static str>,
     max_completion_tokens: u32,
     store: bool,
 }
@@ -188,6 +190,10 @@ fn request<'a>(
             .collect(),
         tool_choice: "auto",
         parallel_tool_calls: false,
+        // Terra's Chat Completions endpoint requires reasoning to be disabled
+        // when function tools are present. Other model overrides keep their
+        // provider defaults and receive no Terra-specific parameter.
+        reasoning_effort: (model == "gpt-5.6-terra").then_some("none"),
         max_completion_tokens: 2048,
         store: false,
     })
